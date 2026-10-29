@@ -1,0 +1,1 @@
+{"name":"@redwood/suggest","version":"0.0.0","type":"module","main":"src/index.ts","dependencies":{"@redwood/spec":"*","@redwood/parts":"*","@redwood/planner":"*"},"devDependencies":{"@redwood/generator":"*"}}

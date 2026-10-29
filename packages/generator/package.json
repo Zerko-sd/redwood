@@ -1,0 +1,2 @@
+{ "name": "@redwood/generator", "version": "0.0.0", "type": "module", "main": "src/index.ts",
+  "dependencies": { "@redwood/spec": "*", "@redwood/parts": "*", "@redwood/planner": "*", "@redwood/migrations": "*", "@redwood/kit-shadcn": "*" } }

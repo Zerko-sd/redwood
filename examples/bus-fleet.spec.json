@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "title": "Bus Fleet",
+  "tenancy": "single",
+  "roles": [
+    { "id": "role:admin", "name": "Admin", "description": "Runs the fleet" },
+    { "id": "role:driver", "name": "Driver", "description": "Drives trips" }
+  ],
+  "stories": [
+    {
+      "id": "story:manage-buses", "role": "role:admin",
+      "action": "add, edit and remove buses", "reason": "I know which vehicles are in service",
+      "acceptance": ["A bus needs a unique plate number"], "priority": "must"
+    },
+    {
+      "id": "story:schedule-trips", "role": "role:admin",
+      "action": "schedule a trip for a bus and a driver", "reason": "every route is covered",
+      "acceptance": ["A trip starts as scheduled"], "priority": "must"
+    },
+    {
+      "id": "story:my-trips", "role": "role:driver",
+      "action": "see my own trips", "reason": "I know where to be",
+      "acceptance": ["I never see other drivers' trips"], "priority": "must"
+    },
+    {
+      "id": "story:progress-trip", "role": "role:driver",
+      "action": "mark my trip as running and then done", "reason": "dispatch sees progress",
+      "priority": "should"
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:bus", "name": "Bus",
+      "fields": [
+        { "id": "field:plate", "name": "Plate", "type": "text", "required": true, "unique": true },
+        { "id": "field:capacity", "name": "Capacity", "type": "number", "required": true, "min": 1 }
+      ],
+      "seed": [{ "field:plate": "KA-01-1234", "field:capacity": 40 }]
+    },
+    {
+      "id": "entity:trip", "name": "Trip",
+      "fields": [
+        { "id": "field:route", "name": "Route", "type": "text", "required": true },
+        { "id": "field:departs", "name": "Departs", "type": "datetime", "required": true },
+        { "id": "field:bus", "name": "Bus", "type": "reference", "references": "entity:bus", "required": true },
+        { "id": "field:driver", "name": "Driver", "type": "text", "required": true },
+        { "id": "field:status", "name": "Status", "type": "choice", "options": ["scheduled", "running", "done"], "default": "scheduled" }
+      ],
+      "workflow": {
+        "field": "Status",
+        "states": ["scheduled", "running", "done"],
+        "transitions": [
+          { "from": "scheduled", "to": "running", "roles": ["role:driver", "role:admin"] },
+          { "from": "running", "to": "done", "roles": ["role:driver", "role:admin"] }
+        ]
+      }
+    }
+  ],
+  "endpoints": [
+    { "id": "endpoint:buses-list", "entity": "entity:bus", "operation": "list" },
+    { "id": "endpoint:buses-create", "entity": "entity:bus", "operation": "create" },
+    { "id": "endpoint:buses-update", "entity": "entity:bus", "operation": "update" },
+    { "id": "endpoint:buses-delete", "entity": "entity:bus", "operation": "delete" },
+    { "id": "endpoint:trips-list", "entity": "entity:trip", "operation": "list" },
+    { "id": "endpoint:trips-create", "entity": "entity:trip", "operation": "create" },
+    { "id": "endpoint:trips-update", "entity": "entity:trip", "operation": "update" }
+  ],
+  "screens": [
+    {
+      "id": "screen:buses", "title": "Buses", "path": "/buses", "entity": "entity:bus",
+      "stories": ["story:manage-buses"],
+      "endpoints": ["endpoint:buses-list", "endpoint:buses-create", "endpoint:buses-update", "endpoint:buses-delete"],
+      "roles": ["role:admin"]
+    },
+    {
+      "id": "screen:trips", "title": "Trips", "path": "/trips", "entity": "entity:trip",
+      "stories": ["story:schedule-trips", "story:my-trips", "story:progress-trip"],
+      "endpoints": ["endpoint:trips-list", "endpoint:trips-create", "endpoint:trips-update"],
+      "roles": ["role:admin", "role:driver"]
+    }
+  ],
+  "access": [
+    { "role": "role:admin", "entity": "entity:bus", "operations": ["list", "read", "create", "update", "delete"] },
+    { "role": "role:admin", "entity": "entity:trip", "operations": ["list", "read", "create", "update", "delete"] },
+    { "role": "role:driver", "entity": "entity:trip", "operations": ["list", "read", "update"], "ownerField": "Driver" }
+  ],
+  "theme": { "kit": "shadcn", "preset": "default" }
+}

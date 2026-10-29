@@ -1,0 +1,1 @@
+{ "name": "@redwood/kit-shadcn", "version": "0.0.0", "type": "module", "main": "src/index.ts", "dependencies": { "@redwood/parts": "*" } }

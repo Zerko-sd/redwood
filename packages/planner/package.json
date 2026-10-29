@@ -1,0 +1,1 @@
+{ "name": "@redwood/planner", "version": "0.0.0", "type": "module", "main": "src/index.ts", "dependencies": { "@redwood/spec": "*", "@redwood/parts": "*" } }

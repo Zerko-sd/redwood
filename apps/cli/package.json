@@ -1,0 +1,13 @@
+{
+  "name": "@redwood/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": { "redwood": "bin/redwood.mjs" },
+  "main": "src/index.ts",
+  "dependencies": {
+    "@redwood/generator": "*",
+    "@redwood/planner": "*",
+    "@redwood/spec": "*",
+    "tsx": "^4.19.0"
+  }
+}
