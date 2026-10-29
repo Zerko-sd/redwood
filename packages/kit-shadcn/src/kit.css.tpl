@@ -24,7 +24,8 @@ code { font-size: 0.9em; }
 }
 .rw-brand { font-family: var(--font-display); font-weight: 600; font-size: 1rem; padding: 0.25rem 0.75rem 1rem; }
 .rw-nav { display: flex; flex-direction: column; gap: 2px; }
-.rw-nav a { padding: 0.3rem 0.75rem; font-size: 0.925rem; border-radius: var(--radius); color: var(--foreground-muted); text-decoration: none; }
+.rw-nav a { display: flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.75rem; font-size: 0.925rem; border-radius: var(--radius); color: var(--foreground-muted); text-decoration: none; }
+.rw-nav-icon { flex-shrink: 0; opacity: 0.75; }
 .rw-nav a:hover { color: var(--foreground); background: var(--muted); }
 .rw-nav a.active { color: var(--foreground); background: var(--muted); font-weight: 600; }
 .rw-me { margin-top: auto; padding: 0.9rem 0.75rem 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-start; }
