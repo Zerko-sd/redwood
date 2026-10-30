@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { applyCommand, canonicalJson, checkSpec, specHash, touches, type Spec } from "@redwood/spec";
+import { applyCommand, canonicalJson, checkSpec, spec as specSchema, specHash, touches, type Spec } from "@redwood/spec";
 import { tx, type Db } from "./db";
 
 export interface Head {
@@ -33,12 +33,19 @@ export function createProject(db: Db, p: { orgId: string; name: string; spec: Sp
   });
 }
 
+/** A revision as saved, read through today's schema: one saved before a field existed gets that field's default. */
+function stored(text: string): Spec {
+  const raw = JSON.parse(text) as unknown;
+  const parsed = specSchema.safeParse(raw);
+  return parsed.success ? parsed.data : (raw as Spec);
+}
+
 export function head(db: Db, projectId: string): Head {
   const row = db
     .prepare(`SELECT rev, spec FROM revisions WHERE project_id = ? ORDER BY rev DESC LIMIT 1`)
     .get(projectId) as { rev: number; spec: string } | undefined;
   if (!row) throw new StoreError("project not found", 404);
-  return { rev: row.rev, spec: JSON.parse(row.spec) as Spec };
+  return { rev: row.rev, spec: stored(row.spec) };
 }
 
 export function revision(db: Db, projectId: string, rev: number): Head {
@@ -46,7 +53,7 @@ export function revision(db: Db, projectId: string, rev: number): Head {
     | { rev: number; spec: string }
     | undefined;
   if (!row) throw new StoreError(`revision ${rev} not found`, 404);
-  return { rev: row.rev, spec: JSON.parse(row.spec) as Spec };
+  return { rev: row.rev, spec: stored(row.spec) };
 }
 
 /**

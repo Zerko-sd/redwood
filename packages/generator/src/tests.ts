@@ -7,7 +7,7 @@ import { json } from "./util";
 /** A value that satisfies a column, so tests can insert rows without going through the API. */
 function sample(f: Field): string | number {
   switch (f.type) {
-    case "number": case "money": return f.min ?? 1;
+    case "number": case "money": case "percent": case "rating": return f.min ?? 1;
     case "boolean": return 0;
     case "choice": return f.options?.[0] ?? "";
     case "date": return "2026-01-01";

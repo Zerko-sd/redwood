@@ -17,6 +17,8 @@ export interface PreviewStatus {
   error?: string;
   /** Data-losing steps waiting for a person's confirmation. The running app is left as it was. */
   pendingDestructive?: string[];
+  held?: boolean;
+  seedNote?: boolean;
   logs: string[];
 }
 
@@ -31,6 +33,8 @@ interface Running {
   pending?: string[];
   logs: string[];
   latest: Spec;
+  held?: boolean;
+  seedNote?: boolean;
   queue: Promise<void>;
   timer?: NodeJS.Timeout;
 }
@@ -75,6 +79,15 @@ function kill(child?: ChildProcess): void {
   } else child.kill("SIGTERM");
 }
 
+/** Waits for a process to be gone, so its replacement never overlaps it on the same database. */
+function exited(child?: ChildProcess, ms = 5000): Promise<void> {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((ok) => {
+    const t = setTimeout(ok, ms);
+    child.once("exit", () => { clearTimeout(t); ok(); });
+  });
+}
+
 /** Server-side files: changing any of them needs the API process restarted; web files hot-reload on their own. */
 const needsApiRestart = (path: string) =>
   path.startsWith("src/server/") || path.startsWith("src/shared/") || path.startsWith("migrations/") || path === "package.json";
@@ -117,6 +130,8 @@ export class PreviewManager {
       accounts: a.latest.roles.map((r) => r.id.replace(/^role:/, "")),
       ...(a.error ? { error: a.error } : {}),
       ...(a.pending ? { pendingDestructive: a.pending } : {}),
+      ...(a.held ? { held: true } : {}),
+      ...(a.seedNote ? { seedNote: true } : {}),
       logs: a.logs.slice(-40),
     };
   }
@@ -147,11 +162,13 @@ export class PreviewManager {
 
   private async startApi(a: Running, modules: string): Promise<void> {
     kill(a.api);
+    await exited(a.api); // taskkill returns at once; an old process still running could write its stale seed hash
     a.api = this.spawnLogged(a, [join(modules, "tsx", "dist", "cli.mjs"), "src/server/main.ts"], {
       PORT: String(a.apiPort),
       HOST: "127.0.0.1",
       DB_PATH: join(a.dir, "app.db"),
       SEED_DEMO: "1",
+      SEED_REPLACE: "1", // only previews reload sample rows when they change; a deployed app never does
     });
     const api = a.api;
     api.on("exit", (code) => {
@@ -204,6 +221,7 @@ export class PreviewManager {
       await this.startApi(a, modules);
       a.web = this.spawnLogged(a, [join(modules, "vite", "bin", "vite.js"), "--port", String(a.webPort), "--strictPort", "--host", "127.0.0.1"], {
         API_PORT: String(a.apiPort),
+        REDWOOD_DEPS: modules,
       });
       await waitFor(`http://127.0.0.1:${a.webPort}/`);
       a.state = "running";
@@ -217,9 +235,20 @@ export class PreviewManager {
   schedule(projectId: string, spec: Spec): void {
     const a = this.apps.get(projectId);
     if (!a || a.state === "stopped") return;
+    a.seedNote = JSON.stringify(a.latest.entities.map((e) => e.seed)) !== JSON.stringify(spec.entities.map((e) => e.seed));
     a.latest = spec;
     clearTimeout(a.timer);
+    if (a.held) return; // Live is off: the newest spec waits here until it is on again
     a.timer = setTimeout(() => void this.regenerate(projectId, false), 250);
+  }
+
+  /** Live off holds regeneration back, so a run of edits can be finished before the app changes. */
+  hold(projectId: string, held: boolean): void {
+    const a = this.apps.get(projectId);
+    if (!a) return;
+    a.held = held;
+    if (held) this.emit(projectId);
+    else void this.regenerate(projectId, false);
   }
 
   /** Applies a held-back data-losing migration after a person has confirmed it. */

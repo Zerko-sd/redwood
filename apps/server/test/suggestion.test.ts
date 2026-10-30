@@ -5,7 +5,7 @@ import { startServer, type PreviewLike, type Running } from "../src";
 const preview: PreviewLike = {
   start: async () => ({ state: "stopped", accounts: [], logs: [] }),
   status: () => ({ state: "stopped", accounts: [], logs: [] }),
-  stop: () => {}, schedule: () => {}, confirmDestructive: async () => {},
+  stop: () => {}, schedule: () => {}, confirmDestructive: async () => {}, hold: () => {},
 };
 
 /** A stand-in model that knows one small app. */

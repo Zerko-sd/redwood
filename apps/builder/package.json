@@ -9,12 +9,13 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@fontsource/urbanist": "^5.3.0",
     "@redwood/parts": "*",
     "@redwood/planner": "*",
     "@redwood/spec": "*",
+    "@redwood/suggest": "*",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@redwood/suggest": "*"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

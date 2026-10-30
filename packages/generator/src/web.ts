@@ -1,6 +1,7 @@
 import type { Spec } from "@redwood/spec";
 import { tableName } from "@redwood/migrations";
 import { roleSlug } from "./model";
+import { recordComponent } from "./record";
 import { pascal } from "./util";
 
 export type { Gap } from "./registry";
@@ -10,8 +11,11 @@ export const screenFile = (screenId: string) => `src/web/screens/${pascal(screen
 
 const str = (s: string) => JSON.stringify(s);
 
+/** What a role must be allowed to do for a screen to open: a form page only ever creates. */
+export type ScreenOps = ReadonlyMap<string, "list" | "create">;
+
 /** The home screen: the signed-in role's own stories, each linking to the screen that serves it, or showing the gap. */
-export function emitHome(spec: Spec, gaps: Gap[]): string {
+export function emitHome(spec: Spec, gaps: Gap[], opens: ScreenOps): string {
   const entities = new Map(spec.entities.map((e) => [e.id, e]));
   const homes: Record<string, unknown> = {};
   for (const role of spec.roles) {
@@ -26,6 +30,7 @@ export function emitHome(spec: Spec, gaps: Gap[]): string {
               path: sc.path,
               title: sc.title,
               table: sc.entity ? tableName(entities.get(sc.entity)!) : null,
+              op: opens.get(sc.id) ?? "list",
             }));
           if (!candidates.length) gaps.push({ what: s.id, why: "no screen serves this story for its role" });
           return { text: s.action, reason: s.reason, screens: candidates };
@@ -37,14 +42,14 @@ import { useMe } from "./api";
 import { appTitle } from "../shared/model";
 import { can } from "../shared/policy";
 
-const HOMES: Record<string, { name: string; stories: { text: string; reason: string; screens: { path: string; title: string; table: string | null }[] }[] }> = ${JSON.stringify(homes, null, 2)};
+const HOMES: Record<string, { name: string; stories: { text: string; reason: string; screens: { path: string; title: string; table: string | null; op: "list" | "create" }[] }[] }> = ${JSON.stringify(homes, null, 2)};
 
 export default function Home() {
   const me = useMe();
   const home = HOMES[me.role] ?? { name: me.role, stories: [] };
   const items = home.stories.map((s) => {
     // The first screen this role may actually open; none means the story has no working screen yet.
-    const screen = s.screens.find((sc) => !sc.table || can(me.role, sc.table, "list"));
+    const screen = s.screens.find((sc) => !sc.table || can(me.role, sc.table, sc.op));
     return {
       text: s.text,
       reason: s.reason,
@@ -82,7 +87,7 @@ const ICON_WORDS: [string, RegExp][] = [
 /** Picks an icon by the words in a screen's title, falling back to a plain list. */
 export const navIcon = (title: string): string => ICON_WORDS.find(([, re]) => re.test(title))?.[0] ?? "list";
 
-export function emitApp(spec: Spec): string {
+export function emitApp(spec: Spec, records: ReadonlySet<string>, opens: ScreenOps): string {
   const entities = new Map(spec.entities.map((e) => [e.id, e]));
   const screens = spec.screens.map((s) => ({
     path: s.path,
@@ -90,13 +95,19 @@ export function emitApp(spec: Spec): string {
     icon: navIcon(s.title),
     roles: s.roles.map(roleSlug),
     table: s.entity ? tableName(entities.get(s.entity)!) : null,
+    placement: s.placement,
+    op: opens.get(s.id) ?? "list",
+    group: s.subProject ?? "",
     component: `${pascal(s.id)}Screen`,
     file: `./screens/${pascal(s.id)}`,
+    record: records.has(s.id) && s.path !== "/" ? recordComponent(s.id) : null,
   }));
-  return `import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+  const grouped = new Set(screens.map((s) => s.group).filter(Boolean)).size > 1;
+  return `import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 ${screens.map((s) => `import ${s.component} from ${str(s.file)};`).join("\n")}
+${screens.filter((s) => s.record).map((s) => `import ${s.record} from ${str(`${s.file}Record`)};`).join("\n")}
 import Home from "./Home";
-import { useMe } from "./api";
+import { useMe, useRecords } from "./api";
 import { appTitle } from "../shared/model";
 import { can } from "../shared/policy";
 
@@ -106,51 +117,86 @@ const ICONS: Record<string, string[]> = ${JSON.stringify(
 
 function NavIcon({ name }: { name: string }) {
   return (
-    <svg className="rw-nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="rw-nav-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {ICONS[name].map((d, i) => <path key={i} d={d} />)}
     </svg>
   );
+}
+
+/** How many records this role can see in a table. Refetched on navigation, so it follows adds and deletes. */
+function Count({ table }: { table: string }) {
+  const { rows, loading } = useRecords(table);
+  return loading ? null : <span className="rw-count">{rows.length}</span>;
 }
 
 const screens = [
 ${screens
   .map(
     (s) =>
-      `  { path: ${str(s.path)}, title: ${str(s.title)}, icon: ${str(s.icon)}, roles: ${JSON.stringify(s.roles)}, table: ${s.table ? str(s.table) : "null"}, Component: ${s.component} },`,
+      `  { path: ${str(s.path)}, title: ${str(s.title)}, icon: ${str(s.icon)}, roles: ${JSON.stringify(s.roles)}, table: ${s.table ? str(s.table) : "null"}, placement: ${str(s.placement)}, op: ${str(s.op)} as const, group: ${str(grouped ? s.group : "")}, Component: ${s.component}, Record: ${s.record ?? "null"} },`,
   )
   .join("\n")}
 ];
 
-export function App({ onSignOut }: { onSignOut: () => void }) {
+function Shell({ onSignOut }: { onSignOut: () => void }) {
   const me = useMe();
-  // A screen shows only to its roles, and only if the role may list the entity behind it.
+  const location = useLocation();
+  // A screen shows only to its roles, and only if the role may do what the screen is for: list it, or fill in its form.
   const allowed = screens.filter(
-    (s) => (s.roles.length === 0 || s.roles.includes(me.role)) && (!s.table || can(me.role, s.table, "list")),
+    (s) => (s.roles.length === 0 || s.roles.includes(me.role)) && (!s.table || can(me.role, s.table, s.op)),
   );
+  const home = allowed.find((s) => s.placement === "home");
+  const menu = allowed.filter((s) => s.placement !== "linked");
+  const groups = [...new Set(menu.map((s) => s.group))];
   const link = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined);
   return (
-    <BrowserRouter>
-      <div className="rw-shell">
+    <div className="rw-shell">
+      <div className="rw-frame">
         <aside className="rw-side">
-          <div className="rw-brand">{appTitle}</div>
-          <nav className="rw-nav" aria-label="Main">
-            <NavLink to="/" end className={link}><NavIcon name="home" />Home</NavLink>
-            {allowed.map((s) => <NavLink key={s.path} to={s.path} className={link}><NavIcon name={s.icon} />{s.title}</NavLink>)}
-          </nav>
+          <div className="rw-brand"><span className="rw-mark" aria-hidden="true">{appTitle.charAt(0).toUpperCase()}</span>{appTitle}</div>
+          {!home && (
+            <nav className="rw-nav" aria-label="Main">
+              <NavLink to="/" end className={link}><NavIcon name="home" />Home</NavLink>
+            </nav>
+          )}
+          {groups.map((g) => (
+            <nav key={g} className="rw-nav" aria-label={g || "Pages"}>
+              {g && <span className="rw-nav-group">{g}</span>}
+              {menu.filter((s) => s.group === g).map((s) => (
+                <NavLink key={s.path} to={s.path} end={s.path === "/"} className={link}>
+                  <NavIcon name={s.icon} />{s.title}
+                  {s.table && can(me.role, s.table, "list") && <Count key={location.pathname} table={s.table} />}
+                </NavLink>
+              ))}
+            </nav>
+          ))}
           <div className="rw-me">
-            <strong>{me.username}</strong>
-            {me.username !== me.role && <span className="rw-faint">{me.role}</span>}
+            <div>
+              <strong>{me.username}</strong>
+              {me.username !== me.role && <span className="rw-faint">{me.role}</span>}
+            </div>
             <button className="rw-link rw-faint" onClick={onSignOut}>Sign out</button>
           </div>
         </aside>
-        <main className="rw-main">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            {allowed.map((s) => <Route key={s.path} path={s.path} element={<s.Component />} />)}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
+        <div className="rw-canvas">
+          <main className="rw-main">
+            <Routes>
+              <Route path="/" element={home && home.path !== "/" ? <Navigate to={home.path} replace /> : <Home />} />
+              {allowed.map((s) => <Route key={s.path} path={s.path} element={<s.Component />} />)}
+              {allowed.map((s) => s.Record && <Route key={s.path + "/:id"} path={s.path + "/:id"} element={<s.Record />} />)}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
       </div>
+    </div>
+  );
+}
+
+export function App({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <BrowserRouter>
+      <Shell onSignOut={onSignOut} />
     </BrowserRouter>
   );
 }

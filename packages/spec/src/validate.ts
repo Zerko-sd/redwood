@@ -35,12 +35,17 @@ export function checkSpec(input: unknown): { spec?: Spec; issues: Issue[] } {
   dup("entities", s.entities.map((r) => r.id));
   dup("screens", s.screens.map((r) => r.id));
   dup("endpoints", s.endpoints.map((r) => r.id));
+  dup("services", s.services.map((r) => r.id));
 
   const roles = new Set(s.roles.map((r) => r.id));
   const stories = new Set(s.stories.map((r) => r.id));
   const entities = new Set(s.entities.map((r) => r.id));
   const endpoints = new Set(s.endpoints.map((r) => r.id));
+  const services = new Set(s.services.map((r) => r.id));
 
+  s.subProjects.forEach((sp, i) => {
+    sp.roles.forEach((r) => !roles.has(r) && err(`subProjects.${i}.roles`, `unknown role ${r}`));
+  });
   s.stories.forEach((st, i) => {
     if (!roles.has(st.role)) err(`stories.${i}.role`, `unknown role ${st.role}`);
   });
@@ -52,9 +57,10 @@ export function checkSpec(input: unknown): { spec?: Spec; issues: Issue[] } {
       if (f.type === "choice" && !f.options?.length) err(p, "choice field needs `options`");
     });
     const fieldIds = new Set(e.fields.map((f) => f.id));
+    dup(`entities.${i}.seed`, e.seed.flatMap((row) => (typeof row.id === "string" ? [row.id] : [])));
     e.seed.forEach((row, j) => {
       for (const k of Object.keys(row)) {
-        if (!fieldIds.has(k)) err(`entities.${i}.seed.${j}`, `seed key ${k} is not a field id of ${e.id}`);
+        if (k !== "id" && !fieldIds.has(k)) err(`entities.${i}.seed.${j}`, `seed key ${k} is not a field id of ${e.id}`);
       }
     });
     e.relationships.forEach((r, j) => {
@@ -73,12 +79,15 @@ export function checkSpec(input: unknown): { spec?: Spec; issues: Issue[] } {
   s.endpoints.forEach((ep, i) => {
     if (!entities.has(ep.entity)) err(`endpoints.${i}.entity`, `unknown entity ${ep.entity}`);
     if (ep.operation === "custom" && !ep.action) err(`endpoints.${i}`, "custom endpoint needs `action`");
+    ep.services.forEach((x) => !services.has(x) && err(`endpoints.${i}.services`, `unknown service ${x}`));
   });
   s.screens.forEach((sc, i) => {
     if (sc.entity && !entities.has(sc.entity)) err(`screens.${i}.entity`, `unknown entity ${sc.entity}`);
     sc.stories.forEach((x) => !stories.has(x) && err(`screens.${i}.stories`, `unknown story ${x}`));
     sc.endpoints.forEach((x) => !endpoints.has(x) && err(`screens.${i}.endpoints`, `unknown endpoint ${x}`));
     sc.roles.forEach((x) => !roles.has(x) && err(`screens.${i}.roles`, `unknown role ${x}`));
+    const shown = s.entities.find((e) => e.id === sc.entity);
+    sc.fields.forEach((x) => !shown?.fields.some((f) => f.id === x) && err(`screens.${i}.fields`, `${x} is not a field of ${sc.entity ?? "this screen's table"}`));
     for (const [q, a] of Object.entries(sc.bento)) {
       if (a.answer && a.because.length === 0)
         err(`screens.${i}.bento.${q}`, 'a "yes" must cite at least one story');
@@ -92,6 +101,9 @@ export function checkSpec(input: unknown): { spec?: Spec; issues: Issue[] } {
     const target = s.entities.find((e) => e.id === a.entity);
     if (a.ownerField && target && !target.fields.some((f) => f.name === a.ownerField))
       err(`access.${i}.ownerField`, `"${a.ownerField}" is not a field of ${a.entity}`);
+    for (const name of a.readOnlyFields) {
+      if (target && !target.fields.some((f) => f.name === name)) err(`access.${i}.readOnlyFields`, `"${name}" is not a field of ${a.entity}`);
+    }
   });
   for (const st of s.stories) {
     if (!s.screens.some((sc) => sc.stories.includes(st.id)))

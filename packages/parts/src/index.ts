@@ -4,7 +4,7 @@
  * declare it so the generator emits a placeholder instead of guessing.
  */
 export const PARTS = [
-  "Page", "Toolbar", "Table", "Board", "Form", "DetailPane", "StatCards",
+  "Page", "Toolbar", "Table", "Board", "Form", "RecordPage", "Tabs", "StatCards",
   "Dialog", "EmptyState", "StateButtons", "SearchBox", "Button", "Notifications", "StoryList",
 ] as const;
 export type PartName = (typeof PARTS)[number];
@@ -15,7 +15,7 @@ export type PartName = (typeof PARTS)[number];
  * adding it here and registering its renderer, nothing else.
  */
 export const LAYOUTS = {
-  list: "Records in a table, with a side panel for the one you select. The default.",
+  list: "Records in a table. Each one opens on its own page. The default.",
   board: "Records as cards in one column per workflow state. Needs an entity with a workflow.",
   "form-page": "One form on the page, for a screen that only creates records.",
 } as const;
@@ -34,29 +34,30 @@ export const SLOT_PARTS: Record<SlotName, readonly PartName[]> = {
   header: ["Page"],
   toolbar: ["Toolbar", "SearchBox", "StateButtons"],
   main: ["Table", "Board", "EmptyState", "Form"],
-  aside: ["Form", "DetailPane", "Dialog"],
+  aside: ["Form", "RecordPage", "Dialog"],
   footer: ["StatCards"],
 };
 
 /** Theme tokens a kit must map onto its own CSS variables. */
 export const THEME_TOKENS = [
-  "background", "surface", "foreground", "foreground-muted", "primary", "primary-foreground",
+  "background", "surface", "sidebar", "foreground", "foreground-muted", "primary", "primary-foreground",
   "muted", "border", "danger", "radius", "font-sans", "font-display",
 ] as const;
 export type ThemeToken = (typeof THEME_TOKENS)[number];
 export const DEFAULT_TOKENS: Record<ThemeToken, string> = {
-  background: "#ffffff",
-  surface: "#fbfbfa",
-  foreground: "#37352f",
-  "foreground-muted": "#6b6a67",
-  primary: "#2383e2",
+  background: "#fcfcfb",
+  surface: "#f5f5f1",
+  sidebar: "#e6e5dc",
+  foreground: "#1f1f1c",
+  "foreground-muted": "#75746c",
+  primary: "#1f1f1c",
   "primary-foreground": "#ffffff",
-  muted: "#efefed",
-  border: "#e9e9e7",
-  danger: "#d44c47",
-  radius: "5px",
-  "font-sans": '"IBM Plex Sans", system-ui, sans-serif',
-  "font-display": '"IBM Plex Sans", system-ui, sans-serif',
+  muted: "#ecebe5",
+  border: "#dddcd3",
+  danger: "#c0443a",
+  radius: "10px",
+  "font-sans": '"Hanken Grotesk", system-ui, sans-serif',
+  "font-display": '"Source Serif 4", Georgia, serif',
 };
 
 /**
@@ -64,14 +65,14 @@ export const DEFAULT_TOKENS: Record<ThemeToken, string> = {
  * look is a handful of tokens, never edits to components. Add a theme by adding an entry.
  */
 export const THEMES: Record<string, { description: string; tokens: Partial<Record<ThemeToken, string>> }> = {
-  default: { description: "White canvas, warm grey text, blue accent. Notion-like.", tokens: {} },
+  default: { description: "A warm grey-green rail, an off-white page and serif titles. Calm and bookish.", tokens: {} },
   harbor: {
     description: "Pale blue-grey ground, deep blue accent.",
-    tokens: { background: "#f2f5f9", primary: "#1d4673", muted: "#e6ecf3", border: "#d5dde8", "foreground-muted": "#56637a" },
+    tokens: { background: "#f8fafc", surface: "#f0f4f8", sidebar: "#dfe7ef", primary: "#1d4673", muted: "#e6ecf3", border: "#d5dde8", "foreground-muted": "#56637a", foreground: "#1b2736" },
   },
   graphite: {
     description: "Neutral grey ground, near-black accent. Quiet and dense.",
-    tokens: { background: "#f5f5f4", primary: "#20242c", muted: "#ebebe9", border: "#dcdcd8", radius: "2px" },
+    tokens: { background: "#fafafa", surface: "#f2f2f1", sidebar: "#e3e3e1", primary: "#20242c", muted: "#ebebe9", border: "#dcdcd8", radius: "3px" },
   },
 };
 export const isTheme = (s: string): boolean => Object.hasOwn(THEMES, s);

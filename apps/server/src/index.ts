@@ -19,7 +19,7 @@ export async function startServer(opts: { port?: number; dbPath?: string; previe
   const db = openDb(opts.dbPath);
   const hub = new Hub();
   const manager = opts.preview ? undefined : new PreviewManager({
-    root: resolve(opts.previewRoot ?? ".preview"),
+    root: resolve(opts.previewRoot ?? process.env.REDWOOD_PREVIEW_ROOT ?? ".preview"),
     onChange: (id, s) => hub.broadcast(id, { type: "preview", state: s.state }),
   });
   const preview = opts.preview ?? manager!;

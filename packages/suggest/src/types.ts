@@ -1,7 +1,7 @@
 import type { Command } from "@redwood/spec";
 
 /** Types only, so the browser can import them without pulling in anything from node. */
-export type StepName = "place" | "fields" | "operations" | "audience" | "access" | "rules" | "theme";
+export type StepName = "place" | "fields" | "operations" | "audience" | "access" | "rules" | "services" | "theme";
 
 /** One open question and the commands that answer it. Nothing here is applied until a person accepts it. */
 export interface Suggestion {

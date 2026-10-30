@@ -3,6 +3,7 @@ import { Empty, Section } from "./ui";
 
 export function History({ entries, current, canEdit, onRestore }: { entries: HistoryEntry[]; current: number; canEdit: boolean; onRestore: (rev: number) => void }) {
   return (
+    <div className="dock-body">
     <Section title="History" hint="Every change is a revision. Restoring one adds a new revision on top; nothing is erased.">
       {entries.length === 0 ? <Empty>No history yet.</Empty> : (
         <table className="grid">
@@ -21,5 +22,6 @@ export function History({ entries, current, canEdit, onRestore }: { entries: His
         </table>
       )}
     </Section>
+    </div>
   );
 }

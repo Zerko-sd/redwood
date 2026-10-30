@@ -90,11 +90,35 @@ export interface DialogProps {
   children?: ReactNode;
 }
 
-export interface DetailPaneProps {
+export interface TabsProps {
+  tabs: { id: string; label: string; count?: number; content: ReactNode }[];
+}
+
+export interface RecordPageProps extends TabsProps {
   title: string;
-  fields: { label: string; value: string }[];
+  /** A few short values shown under the title. */
+  summary: string[];
+  back: { label: string; onClick: () => void };
+  /** The address of the record's picture, if its table has one. */
+  image?: string;
   actions?: ReactNode;
-  onClose: () => void;
+}
+
+export interface RecordDetailsProps {
+  fields: FormField[];
+  values: Row;
+  /** Column keys shown but never editable here. */
+  locked: Set<string>;
+  canEdit: boolean;
+  /** Resolves to null when saved, or the message to show. */
+  onSave: (changes: Row) => Promise<string | null>;
+}
+
+export interface RelatedListProps {
+  columns: Column[];
+  rows: Row[];
+  onOpen?: (row: Row) => void;
+  empty: string;
 }
 
 export interface SearchBoxProps {

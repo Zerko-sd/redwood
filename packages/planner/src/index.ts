@@ -47,7 +47,7 @@ const ops = (spec: Spec, screen: Screen) =>
 
 export const QUESTIONS: Question[] = [
   { id: "lists-many", rule: (s, sc) => ops(s, sc).has("list") },
-  // A listed record can be opened to see all of it; the pane reads rows the list already loaded.
+  // A listed record can be opened on a page of its own.
   { id: "has-detail", rule: (s, sc) => ops(s, sc).has("list") },
   { id: "can-create", rule: (s, sc) => ops(s, sc).has("create") },
   { id: "can-edit", rule: (s, sc) => ops(s, sc).has("update") },
@@ -139,7 +139,7 @@ export function planScreen(spec: Spec, screen: Screen): ScreenPlan {
     add({ slot: "aside", part: "Form", requires: yes("can-create") ? "create" : "update", because: [...cite("can-create"), ...cite("can-edit")], why: "screen can create or edit records" });
   } else drop("Form", "no create or update endpoint on this screen");
   if (yes("has-detail")) {
-    add({ slot: "aside", part: "DetailPane", requires: "list", because: cite("has-detail"), why: "a listed record can be opened to see all of its fields" });
+    add({ slot: "aside", part: "RecordPage", requires: "list", because: cite("has-detail"), why: "a listed record opens on its own page, with tabs for what points at it" });
   }
 
   for (const ep of customOps) {

@@ -6,6 +6,9 @@ import type { Suggestion } from "./types";
 export { NO_MODEL } from "./steps";
 
 export * from "./llm";
+export { staleItems, type StaleItem } from "./stale";
+export { recommendStories, type Recommendation } from "./recommend";
+export { describeChange, resolveChange, type ChangeOp } from "./change";
 export type { Context } from "./steps";
 export type { StepName, Suggestion } from "./types";
 
@@ -40,6 +43,7 @@ export async function nextSuggestion(
       steps.audience(spec, ctx) ??
       steps.access(spec, ctx) ??
       (await steps.rules(spec, ctx)) ??
+      (await steps.services(spec, ctx)) ??
       (await steps.theme(spec, ctx));
     if (found) return found;
     if (decided.size === before) return null;

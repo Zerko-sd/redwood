@@ -84,13 +84,20 @@ export function generate(spec: Spec, input: GenerateInput = {}): GenerateResult 
   files["src/web/api.ts"] = template("web/api.ts.tpl");
   files["src/web/format.ts"] = template("web/format.ts.tpl");
   files["src/web/main.tsx"] = template("web/main.tsx.tpl");
-  files["src/web/App.tsx"] = emitApp(spec);
-  files["src/web/Home.tsx"] = emitHome(spec, gaps);
-  for (const plan of planApp(spec)) {
+  const plans = planApp(spec);
+  const opens = new Map(plans.map((p) => [p.screen, p.layout === "form-page" ? ("create" as const) : ("list" as const)]));
+  files["src/web/Home.tsx"] = emitHome(spec, gaps, opens);
+  const records = new Set<string>();
+  for (const plan of plans) {
     const out = emitScreen(spec, plan, kit, gaps);
     files[screenFile(plan.screen)] = out.source;
+    if (out.record) {
+      records.add(plan.screen);
+      files[screenFile(plan.screen).replace(/\.tsx$/, "Record.tsx")] = out.record;
+    }
     for (const [path, text] of Object.entries(out.scaffold)) blockFiles[path] ??= text; // first screen to ask writes the brief
   }
+  files["src/web/App.tsx"] = emitApp(spec, records, opens);
 
   // --- project files
   files["index.html"] = `<!doctype html>
@@ -151,7 +158,11 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/api": \`http://127.0.0.1:\${process.env.API_PORT ?? 8787}\` } },
+  server: {
+    proxy: { "/api": \`http://127.0.0.1:\${process.env.API_PORT ?? 8787}\` },
+    // The Builder's previews share one install outside this folder; fonts have to be served from it.
+    fs: { allow: [".", ...(process.env.REDWOOD_DEPS ? [process.env.REDWOOD_DEPS] : [])] },
+  },
 });
 `;
   files["src/web/vite-env.d.ts"] = `/// <reference types="vite/client" />\n`;

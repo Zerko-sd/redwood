@@ -8,7 +8,7 @@ export const columnName = (f: Field) => snake(f.name);
 
 export function sqlType(f: Field): string {
   switch (f.type) {
-    case "number": return "REAL";
+    case "number": case "percent": case "rating": return "REAL";
     case "money": case "boolean": return "INTEGER"; // money = minor units
     default: return "TEXT";
   }

@@ -1,10 +1,11 @@
 import type { Spec } from "@redwood/spec";
-import { tableName } from "@redwood/migrations";
+import { columnName, tableName } from "@redwood/migrations";
 import type { PartName, UiKit } from "@redwood/parts";
 import type { ScreenPlan } from "@redwood/planner";
 import "./blocks";
 import "./layouts";
 import { findColumn, roleSlug, SpecError } from "./model";
+import { emitRecord, recordComponent, rowHandlers } from "./record";
 import { getBlock, getLayout, getNamedBlock, type Gap, type PageCtx, type SlotId } from "./registry";
 import { pascal, slug } from "./util";
 
@@ -16,6 +17,8 @@ export interface ScreenOutput {
   source: string;
   /** Files created once and never overwritten (developer-written blocks). */
   scaffold: Record<string, string>;
+  /** The page one record opens on, when this screen has one. */
+  record?: string;
 }
 
 /** The file a developer fills in when a screen names a block Redwood has no template for. */
@@ -111,7 +114,7 @@ export default function ${name}() {
     canEdit: answer("can-edit") && has("Form"),
     canDelete: answer("can-delete") && dialogOk && plan.layout !== "form-page",
     dialogOk,
-    detail: ok("DetailPane"),
+    detail: ok("RecordPage"),
     states: has("StateButtons") && !!wfCol,
   };
   const customs = plan.actions;
@@ -184,7 +187,12 @@ ${rowButtons.join("\n")}
   const needsNotify = body.includes("notify(") || flags.states || customs.length > 0;
   const imports = ["Page", ...[...used].filter((u) => u !== "Page")].sort();
 
+  // A screen can narrow what it shows; hidden columns are still filtered first, so this never widens access.
+  const shown = screen.fields.flatMap((id) => entity.fields.filter((f) => f.id === id).map(columnName));
+  const shownColumns = shown.length ? `\n    .filter((c) => ${JSON.stringify(shown)}.includes(c.key))` : "";
+
   const source = `import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ${imports.join(", ")}${needsNotify ? ", notify" : ""} } from "../ui";
 import { formatValue } from "../format";
 import type { FormField, Row } from "../ui/contract";
@@ -202,8 +210,7 @@ export default function ${name}() {
   const { rows, loading, error, create, update, remove } = useRecords(${str(table)}, can(me.role, ${str(table)}, "list"));
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Row | "new" | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<Row | null>(null);
+  const navigate = useNavigate();
   const [formError, setFormError] = useState("");
   const [gap, setGap] = useState<string | null>(null);
 ${plan.layout === "form-page" ? "  const [formKey, setFormKey] = useState(0);\n" : ""}${refTables.map((t) => `  const ref_${t} = useRecords(${str(t)}, can(me.role, ${str(t)}, "list"));`).join("\n")}
@@ -217,7 +224,7 @@ ${refTables.map((t) => `    ${t}: Object.fromEntries(ref_${t}.rows.map((r) => [S
   // Columns the server hides from this role, and columns the server fills in itself, never reach the UI.
   const hidden = new Set(hiddenColumns(me.role, ${str(table)}));
   const columns: FormField[] = model.columns
-    .filter((c) => !hidden.has(c.key))
+    .filter((c) => !hidden.has(c.key))${shownColumns}
     .map((c) => ({ ...c, lookup: c.references ? (lookups[c.references] ?? {}) : undefined }));
   const server = new Set([ownerColumn(me.role, ${str(table)}), model.workflow?.column]);
   const fields: FormField[] = columns
@@ -228,32 +235,17 @@ ${refTables.map((t) => `    ${t}: Object.fromEntries(ref_${t}.rows.map((r) => [S
     columns.some((c) => formatValue(r[c.key], c).toLowerCase().includes(query.toLowerCase())),
   );
 
-  const nameOf = (r: Row | null) => (r ? recordLabel(r, model.display) : "");
+  const nameOf = (r: Row) => recordLabel(r, model.display);
   const editingRow = editing && editing !== "new" ? editing : null;
-  const current = selectedId ? (rows.find((r) => String(r.id) === selectedId) ?? null) : null;
   const closeForm = () => {
     setEditing(null);
     setFormError("");
   };
-${flags.states ? `
-  const move = async (row: Row, to: string) => {
-    const err = await update(row.id, { [${str(wfCol!)}]: to });
-    if (err) notify(err, "error");
-    else notify(nameOf(row) + " is now " + to);
-  };
-` : ""}${customs.length ? `
-  // Custom actions have no template: the server answers 501 until a developer builds them in custom/routes.ts.
-  const act = async (row: Row, action: string, label: string) => {
-    const r = await runAction(${str(table)}, row.id, action);
-    if (r.ok) notify(label + " done");
-    else if (r.notBuilt) setGap(label);
-    else notify(r.message, "error");
-  };
-` : ""}
+${rowHandlers(ctx)}
   return (
 ${layout.shell(screen.title, slots)}
   );
 }
 `;
-  return { source, scaffold };
+  return { source, scaffold, ...(flags.detail ? { record: emitRecord(ctx, recordComponent(plan.screen), refTables, shownColumns) } : {}) };
 }

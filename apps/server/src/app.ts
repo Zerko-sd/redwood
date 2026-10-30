@@ -1,15 +1,16 @@
 import { readFileSync } from "node:fs";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { checkRegistries, generate } from "@redwood/generator";
+import { checkRegistries, generate, MANIFEST_PATH } from "@redwood/generator";
 import { planApp } from "@redwood/planner";
-import { LlmUnavailable, nextSuggestion, type LlmClient } from "@redwood/suggest";
-import { checkSpec } from "@redwood/spec";
+import { describeChange, LlmBadOutput, LlmUnavailable, NO_MODEL, nextSuggestion, recommendStories, staleItems, type LlmClient } from "@redwood/suggest";
+import { canonicalJson, checkSpec } from "@redwood/spec";
 import { AuthError, login, logout, signup, userForToken, type User } from "./auth";
 import type { Db } from "./db";
 import type { Hub } from "./hub";
 import { allowed, roleOn, type Action, type ProjectRole } from "./perms";
 import type { PreviewStatus } from "./preview";
+import { zipFiles } from "./zip";
 import {
   ConflictError, StoreError, applyBatch, blankSpec, createProject, head, history, nameVersion, restore, revision,
 } from "./store";
@@ -21,6 +22,7 @@ export interface PreviewLike {
   stop(projectId: string): void;
   schedule(projectId: string, spec: ReturnType<typeof blankSpec>): void;
   confirmDestructive(projectId: string): Promise<void>;
+  hold(projectId: string, held: boolean): void;
 }
 
 type Env = { Variables: { user: User } };
@@ -284,12 +286,69 @@ export function createApp(deps: { db: Db; hub: Hub; preview: PreviewLike; llm?: 
     return c.json(r);
   });
 
+  // ---- copies and downloads
+  app.post("/api/projects/:id/copy", async (c) => {
+    const g = guard(c, "read");
+    if (isResponse(g)) return g;
+    const user = c.get("user");
+    const source = db.prepare(`SELECT name, org_id AS orgId FROM projects WHERE id = ?`).get(g.id) as { name: string; orgId: string };
+    const name = String((await body<{ name?: string }>(c)).name ?? `${source.name} copy`).trim();
+    if (!name || name.length > 80) throw new StoreError("name must be 1-80 characters");
+    const id = createProject(db, { orgId: source.orgId, name, spec: { ...head(db, g.id).spec, title: name }, userId: user.id });
+    return c.json({ id, name, rev: 1 }, 201);
+  });
+
+  const download = (c: Context<Env>, type: string, file: string, data: string | Buffer) =>
+    c.body(data as never, 200, { "content-type": type, "content-disposition": `attachment; filename="${file}"` });
+  const fileName = (id: string) => (db.prepare(`SELECT name FROM projects WHERE id = ?`).get(id) as { name: string }).name.replace(/[^\w-]+/g, "-").toLowerCase() || "app";
+
+  app.get("/api/projects/:id/export", (c) => {
+    const g = guard(c, "read");
+    if (isResponse(g)) return g;
+    const { files, scaffold, manifest } = generate(head(db, g.id).spec);
+    const all = { ...scaffold, ...files, [MANIFEST_PATH]: JSON.stringify(manifest, null, 2) };
+    return download(c, "application/zip", `${fileName(g.id)}.zip`, zipFiles(all));
+  });
+
+  app.get("/api/projects/:id/spec", (c) => {
+    const g = guard(c, "read");
+    if (isResponse(g)) return g;
+    return download(c, "application/json", `${fileName(g.id)}.spec.json`, canonicalJson(head(db, g.id).spec));
+  });
+
   // ---- reports
   app.get("/api/projects/:id/check", (c) => {
     const g = guard(c, "read");
     if (isResponse(g)) return g;
     const spec = head(db, g.id).spec;
     return c.json([...checkSpec(spec).issues, ...checkRegistries(spec)]);
+  });
+
+  app.get("/api/projects/:id/stale", (c) => {
+    const g = guard(c, "read");
+    if (isResponse(g)) return g;
+    return c.json(staleItems(head(db, g.id).spec));
+  });
+
+  app.get("/api/projects/:id/recommendations", (c) => {
+    const g = guard(c, "read");
+    if (isResponse(g)) return g;
+    return c.json(recommendStories(head(db, g.id).spec));
+  });
+
+  app.post("/api/projects/:id/change", async (c) => {
+    const g = guard(c, "edit");
+    if (isResponse(g)) return g;
+    const text = String((await body<{ text: string }>(c)).text ?? "").trim();
+    if (!text || text.length > 500) throw new StoreError("describe the change in 1-500 characters");
+    if (!llm) return c.json({ error: NO_MODEL }, 503);
+    try {
+      return c.json(await describeChange(head(db, g.id).spec, text, llm));
+    } catch (e) {
+      if (e instanceof LlmUnavailable) return c.json({ error: e.message }, 503);
+      if (e instanceof LlmBadOutput) return c.json({ error: `The model could not give a usable answer: ${e.message}` }, 502);
+      throw e;
+    }
   });
 
   app.get("/api/projects/:id/plan", (c) => {
@@ -356,6 +415,13 @@ export function createApp(deps: { db: Db; hub: Hub; preview: PreviewLike; llm?: 
     if (isResponse(g)) return g;
     preview.stop(g.id);
     return c.body(null, 204);
+  });
+
+  app.post("/api/projects/:id/preview/hold", async (c) => {
+    const g = guard(c, "preview");
+    if (isResponse(g)) return g;
+    preview.hold(g.id, !!(await body<{ held: boolean }>(c)).held);
+    return c.json(preview.status(g.id));
   });
 
   // Applying a data-losing migration to the preview database is a deliberate act, never a side effect of editing.

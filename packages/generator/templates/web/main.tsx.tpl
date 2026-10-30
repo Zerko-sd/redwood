@@ -14,6 +14,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
   const attempt = (username: string, password: string) =>
     session.login(username, password).then(onSignedIn).catch((err: Error) => setError(err.message));
   return (
+    <div className="rw-login-wrap">
     <main className="rw-login">
       <h1 className="rw-login-title">{appTitle}</h1>
       <p className="rw-lede">Sign in to continue.</p>
@@ -48,6 +49,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
         </div>
       )}
     </main>
+    </div>
   );
 }
 

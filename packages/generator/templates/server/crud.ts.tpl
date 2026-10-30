@@ -3,7 +3,7 @@ import type { Context, Hono } from "hono";
 import { db } from "./db";
 import type { User } from "./auth";
 import type { Model } from "../shared/model";
-import { can, canTransition, ownerColumn, hiddenColumns } from "../shared/policy";
+import { can, canTransition, ownerColumn, hiddenColumns, readOnlyColumns } from "../shared/policy";
 
 type Row = Record<string, unknown>;
 export type Env = { Variables: { user: User } };
@@ -35,7 +35,7 @@ export function validate(
       continue;
     }
     let v = body[col.key];
-    if (col.type === "number" || col.type === "money") {
+    if (["number", "money", "percent", "rating"].includes(col.type)) {
       v = Number(v);
       if (!Number.isFinite(v as number)) return { error: `${col.label} must be a number` };
       if (col.min !== undefined && (v as number) < col.min) return { error: `${col.label} must be at least ${col.min}` };
@@ -117,6 +117,13 @@ export function mountCrud(app: Hono<Env>, model: Model): void {
     if ("error" in checked) return c.json({ error: checked.error }, 400);
     const values = checked.values;
     if (oc) delete values[oc]; // ownership never changes through an update
+    for (const key of readOnlyColumns(user.role, model.table)) {
+      if (!(key in values)) continue;
+      if (String(values[key]) !== String(row[key])) {
+        return c.json({ error: `${model.columns.find((x) => x.key === key)?.label ?? key} can't be changed` }, 403);
+      }
+      delete values[key];
+    }
     const wf = model.workflow;
     if (wf && wf.column in values && values[wf.column] !== row[wf.column]) {
       if (!canTransition(user.role, model.table, String(row[wf.column]), String(values[wf.column]))) {

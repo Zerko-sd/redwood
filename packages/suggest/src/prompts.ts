@@ -9,6 +9,15 @@
 
 const list = (xs: readonly string[], none = "(none yet)") => (xs.length ? xs.join(", ") : none);
 
+export function servicePrompt(a: { entity: string; action: string; services: string[]; kinds: readonly string[] }): string {
+  return [
+    `Endpoint: custom action "${a.action}" on ${a.entity}`,
+    `Known services: ${list(a.services)}`,
+    `Service kinds: ${a.kinds.join(", ")}`,
+    "Does handling this endpoint require calling a backend service (business logic beyond a simple CRUD read/write against the database)? If yes, respond needsService true and, if one of the known services above clearly matches, its exact name, otherwise a short name for a new service, with its kind. If no service call is needed, respond needsService false with serviceName null.",
+  ].join("\n\n");
+}
+
 export function entityPrompt(a: { story: string; role?: string; entities: string[]; paths: string[] }): string {
   return [
     "You are responsible for identifying the canonical domain entity for a user story.",

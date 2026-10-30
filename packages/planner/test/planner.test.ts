@@ -16,10 +16,10 @@ describe("planner", () => {
     expect(buses.items.find((i) => i.part === "Table")!.because).toContain("story:manage-buses");
   });
 
-  it("plans a toolbar, a dialog for writes, and a detail pane for a list", () => {
+  it("plans a toolbar, a dialog for writes, and a record page for a list", () => {
     const parts = buses.items.map((i) => i.part);
-    expect(parts).toEqual(expect.arrayContaining(["Toolbar", "Dialog", "DetailPane"]));
-    expect(buses.items.find((i) => i.part === "DetailPane")!.requires).toBe("list");
+    expect(parts).toEqual(expect.arrayContaining(["Toolbar", "Dialog", "RecordPage"]));
+    expect(buses.items.find((i) => i.part === "RecordPage")!.requires).toBe("list");
   });
 
   it("shows a custom action as a visible gap instead of dropping it", () => {

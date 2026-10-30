@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatValue } from "../format";
 import type {
-  BoardProps, ButtonProps, Column, DetailPaneProps, DialogProps, EmptyStateProps, FormProps, Notify, PageProps,
-  PlaceholderProps, Row, SearchBoxProps, StatCardsProps, StateButtonsProps, StoryListProps, TableProps, ToolbarProps,
+  BoardProps, ButtonProps, Column, DialogProps, EmptyStateProps, FormField, FormProps, Notify, PageProps,
+  PlaceholderProps, RecordDetailsProps, RecordPageProps, RelatedListProps, Row, SearchBoxProps, StatCardsProps,
+  StateButtonsProps, StoryListProps, TableProps, TabsProps, ToolbarProps,
 } from "./contract";
 
-const numeric = (c: Column) => c.type === "number" || c.type === "money";
+const numeric = (c: Column) => ["number", "money", "percent", "rating"].includes(c.type);
 
 export function Page({ title, subtitle, actions, children }: PageProps) {
   return (
@@ -112,11 +113,48 @@ export function Board({ lanes, titleOf, detailsOf, onOpen, rowActions }: BoardPr
   );
 }
 
+const INPUT_TYPES: Record<string, string> = {
+  number: "number", money: "number", percent: "number", rating: "number",
+  date: "date", datetime: "datetime-local", email: "email", url: "url", color: "color", phone: "tel",
+};
+
+/** The right input for a field. The dropdowns, checkbox and text boxes of every form come from here. */
+function FieldControl({ field: f, value, focus, disabled, onChange }: { field: FormField; value: unknown; focus?: boolean; disabled?: boolean; onChange: (v: unknown) => void }) {
+  if (f.choices) {
+    return (
+      <select className="rw-input" autoFocus={focus} disabled={disabled} required={f.required} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{f.choices.length ? "Choose one" : "Nothing to choose from"}</option>
+        {f.choices.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    );
+  }
+  if (f.options) {
+    return (
+      <select className="rw-input" autoFocus={focus} disabled={disabled} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Choose one</option>
+        {f.options.map((o) => <option key={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (f.type === "boolean") return <input type="checkbox" className="rw-check" disabled={disabled} checked={!!value} onChange={(e) => onChange(e.target.checked)} />;
+  return (
+    <input
+      className="rw-input"
+      autoFocus={focus}
+      disabled={disabled}
+      type={INPUT_TYPES[f.type] ?? "text"}
+      min={f.min}
+      max={f.max}
+      required={f.required}
+      value={String(value ?? "")}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
 export function Form({ fields, initial, error, submitLabel = "Save", onSubmit, onCancel }: FormProps) {
   const [values, setValues] = useState<Row>(initial ?? {});
   const set = (k: string, v: unknown) => setValues((prev) => ({ ...prev, [k]: v }));
-  const inputType = (t: string) =>
-    t === "number" || t === "money" ? "number" : t === "date" ? "date" : t === "datetime" ? "datetime-local" : t === "email" ? "email" : "text";
   return (
     <form
       className="rw-form"
@@ -128,30 +166,7 @@ export function Form({ fields, initial, error, submitLabel = "Save", onSubmit, o
       {fields.map((f, i) => (
         <label key={f.key} className="rw-field">
           <span className="rw-label">{f.label}{f.required ? <span className="rw-faint"> (required)</span> : null}</span>
-          {f.choices ? (
-            <select className="rw-input" autoFocus={i === 0} required={f.required} value={String(values[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)}>
-              <option value="">{f.choices.length ? "Choose one" : "Nothing to choose from"}</option>
-              {f.choices.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          ) : f.options ? (
-            <select className="rw-input" autoFocus={i === 0} value={String(values[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)}>
-              <option value="">Choose one</option>
-              {f.options.map((o) => <option key={o}>{o}</option>)}
-            </select>
-          ) : f.type === "boolean" ? (
-            <input type="checkbox" className="rw-check" checked={!!values[f.key]} onChange={(e) => set(f.key, e.target.checked)} />
-          ) : (
-            <input
-              className="rw-input"
-              autoFocus={i === 0}
-              type={inputType(f.type)}
-              min={f.min}
-              max={f.max}
-              required={f.required}
-              value={String(values[f.key] ?? "")}
-              onChange={(e) => set(f.key, e.target.value)}
-            />
-          )}
+          <FieldControl field={f} value={values[f.key]} focus={i === 0} onChange={(v) => set(f.key, v)} />
         </label>
       ))}
       {error && <p role="alert" className="rw-error">{error}</p>}
@@ -190,35 +205,120 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
   );
 }
 
-export function DetailPane({ title, fields, actions, onClose }: DetailPaneProps) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector("dialog[open]")) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    document.body.classList.add("rw-has-detail"); // lets the page leave room for the panel
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.classList.remove("rw-has-detail");
-    };
-  }, [onClose]);
+export function Tabs({ tabs }: TabsProps) {
+  const [open, setOpen] = useState(tabs[0]?.id);
+  const current = tabs.find((t) => t.id === open) ?? tabs[0];
   return (
-    <aside className="rw-detail" aria-label={title}>
-      <div className="rw-detail-head">
-        <h2 className="rw-detail-title">{title}</h2>
-        <button className="rw-link" onClick={onClose}>Close</button>
-      </div>
-      <dl className="rw-detail-list">
-        {fields.map((f) => (
-          <div key={f.label} className="rw-detail-row">
-            <dt>{f.label}</dt>
-            <dd>{f.value || <span className="rw-faint">—</span>}</dd>
-          </div>
+    <>
+      <div className="rw-tabs" role="tablist">
+        {tabs.map((t) => (
+          <button key={t.id} role="tab" aria-selected={t.id === current?.id} className="rw-tab" onClick={() => setOpen(t.id)}>
+            {t.label}{t.count !== undefined && <span className="rw-count">{t.count}</span>}
+          </button>
         ))}
-      </dl>
-      {actions && <div className="rw-detail-actions">{actions}</div>}
-    </aside>
+      </div>
+      <div role="tabpanel">{current?.content}</div>
+    </>
   );
+}
+
+/** One record: where it came from, what it is called, and a tab for each way of looking at it. */
+export function RecordPage({ title, summary, back, image, actions, tabs }: RecordPageProps) {
+  return (
+    <section className="rw-page">
+      <button className="rw-link rw-back" onClick={back.onClick}>← {back.label}</button>
+      <header className="rw-record-head">
+        {image && <img className="rw-thumb" src={image} alt="" />}
+        <div className="rw-record-text">
+          <h1 className="rw-record-title">{title}</h1>
+          {summary.length > 0 && <p className="rw-summary">{summary.map((s) => <span key={s}>{s}</span>)}</p>}
+        </div>
+        {actions && <div className="rw-head-actions">{actions}</div>}
+      </header>
+      <Tabs tabs={tabs} />
+    </section>
+  );
+}
+
+/** Label on the left, control on the right. Saving sends only what changed. */
+export function RecordDetails({ fields, values, locked, canEdit, onSave }: RecordDetailsProps) {
+  const [draft, setDraft] = useState<Row>({});
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const dirty = Object.keys(draft).length > 0;
+  const set = (key: string, value: unknown) =>
+    setDraft((d) => {
+      const next = { ...d };
+      if (String(value ?? "") === String(values[key] ?? "")) delete next[key];
+      else next[key] = value;
+      return next;
+    });
+  const save = async () => {
+    setSaving(true);
+    const err = await onSave(draft);
+    setSaving(false);
+    setError(err ?? "");
+    if (!err) setDraft({});
+  };
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); void save(); }}>
+      <h2 className="rw-section-title">Details</h2>
+      <div className="rw-rows">
+        {fields.map((f) => {
+          const open = canEdit && !locked.has(f.key);
+          return (
+            <label key={f.key} className="rw-row-field">
+              <span className="rw-label">
+                {f.label}
+                {!open && canEdit && <span className="rw-row-note">You can't change this.</span>}
+              </span>
+              {open ? (
+                <span className="rw-control"><FieldControl field={f} value={f.key in draft ? draft[f.key] : values[f.key]} onChange={(v) => set(f.key, v)} /></span>
+              ) : (
+                <span className="rw-row-value">{formatValue(values[f.key], f) || <span className="rw-faint">—</span>}</span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      {error && <p role="alert" className="rw-error">{error}</p>}
+      {dirty && (
+        <div className="rw-save">
+          <button type="button" className="rw-btn" onClick={() => { setDraft({}); setError(""); }}>Discard</button>
+          <button type="submit" className="rw-btn rw-btn-primary" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>
+        </div>
+      )}
+    </form>
+  );
+}
+
+/** A record's files and pictures: what is there now, and its address when this role may change it. */
+export function RecordFiles({ fields, values, locked, canEdit, onSave }: RecordDetailsProps) {
+  return (
+    <div className="rw-rows">
+      {fields.map((f) => {
+        const value = String(values[f.key] ?? "");
+        return (
+          <div key={f.key} className="rw-row-field">
+            <span className="rw-label">{f.label}</span>
+            <div className="rw-form">
+              {value && f.type === "image" && <img className="rw-file" src={value} alt="" />}
+              {value && f.type === "file" && <a href={value} target="_blank" rel="noreferrer">{value}</a>}
+              {!value && <span className="rw-faint">Nothing yet</span>}
+              {canEdit && !locked.has(f.key) && (
+                <input className="rw-input" aria-label={f.label} placeholder="Address of the file" defaultValue={value} onBlur={(e) => { if (e.target.value !== value) void onSave({ [f.key]: e.target.value }); }} />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function RelatedList({ columns, rows, onOpen, empty }: RelatedListProps) {
+  if (!rows.length) return <p className="rw-faint">{empty}</p>;
+  return <Table columns={columns} rows={rows} onOpen={onOpen} />;
 }
 
 export function StateButtons({ next, onMove }: StateButtonsProps) {

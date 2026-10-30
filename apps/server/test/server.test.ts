@@ -12,6 +12,7 @@ function fakePreview() {
     stop: (id) => void calls.push(`stop:${id}`),
     schedule: (id) => void calls.push(`schedule:${id}`),
     confirmDestructive: async (id) => void calls.push(`confirm:${id}`),
+    hold: (id, held) => void calls.push(`hold:${id}:${held}`),
   };
   return p;
 }
@@ -48,6 +49,7 @@ function client() {
     patch: (p: string, b: unknown = {}) => call("PATCH", p, b),
     del: (p: string) => call("DELETE", p),
     cookie: () => cookie,
+    raw: (p: string) => fetch(base() + p, { headers: cookie ? { cookie } : {} }),
   };
 }
 
@@ -153,6 +155,47 @@ describe("commands and revisions", () => {
     return { a, id };
   }
 
+  it("reads a revision saved before newer fields existed, with their defaults", async () => {
+    const { a, id } = await project();
+    const row = srv.db.prepare(`SELECT rev, spec FROM revisions WHERE project_id = ?`).get(id) as { rev: number; spec: string };
+    const old = JSON.parse(row.spec) as Record<string, unknown> & { screens: Record<string, unknown>[] };
+    delete old.subProjects;
+    for (const s of old.screens) { delete s.fields; delete s.placement; }
+    srv.db.prepare(`UPDATE revisions SET spec = ? WHERE project_id = ? AND rev = ?`).run(JSON.stringify(old), id, row.rev);
+    const { spec } = (await a.get(`/api/projects/${id}`)).json;
+    expect(spec.subProjects).toEqual([]);
+    expect(spec.screens[0].placement).toBe("nav");
+    expect(spec.screens[0].fields).toEqual([]);
+  });
+
+  it("exports the app as a zip and the spec as a file, and copies a project", async () => {
+    const { a, id } = await project();
+    const zip = await a.raw(`/api/projects/${id}/export`);
+    expect(zip.status).toBe(200);
+    expect(zip.headers.get("content-type")).toBe("application/zip");
+    const bytes = Buffer.from(await zip.arrayBuffer());
+    expect(bytes.subarray(0, 4).toString("hex")).toBe("504b0304");
+    expect(bytes.includes("src/web/screens/BusesRecord.tsx")).toBe(true);
+    const file = await a.raw(`/api/projects/${id}/spec`);
+    expect(((await file.json()) as { title: string }).title).toBeTruthy();
+    const copy = await a.post(`/api/projects/${id}/copy`, { name: "Second" });
+    expect(copy.status).toBe(201);
+    expect((await a.get(`/api/projects/${copy.json.id}`)).json.spec.title).toBe("Second");
+  });
+
+  it("reports stale items and recommendations, and needs a model to describe a change", async () => {
+    const { a, id } = await project();
+    expect((await a.get(`/api/projects/${id}/stale`)).json).toEqual([]);
+    expect(Array.isArray((await a.get(`/api/projects/${id}/recommendations`)).json)).toBe(true);
+    expect((await a.post(`/api/projects/${id}/change`, { text: "hide capacity" })).status).toBe(503);
+  });
+
+  it("holds the preview back on request", async () => {
+    const { a, id } = await project();
+    expect((await a.post(`/api/projects/${id}/preview/hold`, { held: true })).status).toBe(200);
+    expect(preview.calls).toContain(`hold:${id}:true`);
+  });
+
   it("applies a batch as one revision and returns the new spec", async () => {
     const { a, id } = await project();
     const r = await a.post(`/api/projects/${id}/commands`, { baseRevision: 1, commands: [addRole("auditor"), addRole("clerk")] });
@@ -191,7 +234,7 @@ describe("commands and revisions", () => {
     await a.post(`/api/projects/${id}/commands`, { baseRevision: 1, commands: [rename("Plate Number")] });
     const r = await a.post(`/api/projects/${id}/commands`, { baseRevision: 1, commands: [rename("Registration")] });
     expect(r.status).toBe(409);
-    expect(r.json.items).toEqual(["field:plate"]);
+    expect(r.json.items).toEqual(["entity:bus/field:plate"]);
     expect(r.json.headRevision).toBe(2);
     const field = (await a.get(`/api/projects/${id}`)).json.spec.entities[0].fields[0];
     expect(field.name).toBe("Plate Number");

@@ -61,7 +61,7 @@ registerBlock({
     const table = ctx.part("Table", () => `<Table
           columns={columns}
           rows={visible}${ctx.flags.detail ? `
-          onOpen={(row) => setSelectedId(String(row.id))}` : ""}${ctx.rowActionsProp}
+          onOpen={(row) => navigate(${str(ctx.screen.path)} + "/" + row.id)}` : ""}${ctx.rowActionsProp}
         />`);
     return listStates(ctx, table);
   },
@@ -80,7 +80,7 @@ registerBlock({
               .slice(0, 3)
               .map((c) => c.label + ": " + (formatValue(row[c.key], c) || "—"))
           }${ctx.flags.detail ? `
-          onOpen={(row) => setSelectedId(String(row.id))}` : ""}${ctx.rowActionsProp}
+          onOpen={(row) => navigate(${str(ctx.screen.path)} + "/" + row.id)}` : ""}${ctx.rowActionsProp}
         />`);
     return listStates(ctx, board);
   },
@@ -141,35 +141,6 @@ registerBlock({
 });
 
 registerBlock({
-  id: "confirm-dialog",
-  description: "Asks before deleting.",
-  render(ctx) {
-    if (!ctx.flags.canDelete) return "";
-    ctx.used.add("Button").add("Dialog");
-    return `      <Dialog title={"Delete " + nameOf(confirming) + "?"} open={confirming !== null} onClose={() => setConfirming(null)}>
-        <p>This permanently removes the ${ctx.word}. It can’t be undone.</p>
-        <div className="rw-form-actions">
-          <Button onClick={() => setConfirming(null)}>Cancel</Button>
-          <Button
-            variant="danger"
-            onClick={async () => {
-              const target = confirming;
-              setConfirming(null);
-              if (!target) return;
-              const err = await remove(target.id);
-              if (err) return notify(err, "error");
-              setSelectedId(null);
-              notify(${str(`${ctx.entity.name} deleted`)});
-            }}
-          >
-            Delete
-          </Button>
-        </div>
-      </Dialog>`;
-  },
-});
-
-registerBlock({
   id: "gap-dialog",
   description: "What a custom action with no template shows when it is used.",
   render(ctx) {
@@ -185,35 +156,10 @@ registerBlock({
 });
 
 registerBlock({
-  id: "detail-pane",
-  description: "All of a record's fields, in a panel beside the list.",
+  id: "record-page",
+  description: "Records open on a page of their own. A kit with no such part shows where one belongs.",
   render(ctx) {
-    if (ctx.has("DetailPane") && !ctx.flags.detail) return ctx.part("DetailPane", () => "");
-    if (!ctx.flags.detail) return "";
-    ctx.used.add("DetailPane");
-    const actions: string[] = [];
-    const t = str(ctx.table);
-    if (ctx.flags.canEdit) {
-      ctx.used.add("Button");
-      actions.push(`          {can(me.role, ${t}, "update") && <Button onClick={() => setEditing(current)}>Edit</Button>}`);
-    }
-    if (ctx.flags.canDelete) {
-      ctx.used.add("Button");
-      actions.push(`          {can(me.role, ${t}, "delete") && <Button variant="danger" onClick={() => setConfirming(current)}>Delete</Button>}`);
-    }
-    if (ctx.rowButtons.length) actions.push(`          {((row: Row) => (<>\n${ctx.rowButtons.join("\n")}\n          </>))(current)}`);
-    return `      {current && (
-        <DetailPane
-          title={nameOf(current)}
-          fields={columns.map((c) => ({ label: c.label, value: formatValue(current[c.key], c) }))}
-          onClose={() => setSelectedId(null)}${actions.length ? `
-          actions={
-            <>
-${actions.join("\n")}
-            </>
-          }` : ""}
-        />
-      )}`;
+    return ctx.has("RecordPage") && !ctx.flags.detail ? ctx.part("RecordPage", () => "") : "";
   },
 });
 

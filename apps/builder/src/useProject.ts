@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, api, type Command, type HistoryEntry, type Issue, type PreviewStatus, type Project, type ScreenPlan } from "./api";
+import { ApiError, api, type Command, type HistoryEntry, type Issue, type PreviewStatus, type Project, type ScreenPlan, type Spec, type StaleItem } from "./api";
 
 export interface Notice { kind: "error" | "info"; text: string; items?: string[] }
 
@@ -12,27 +12,33 @@ export function useProject(id: string, me: string) {
   const [project, setProject] = useState<Project | null>(null);
   const [plan, setPlan] = useState<ScreenPlan[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [stale, setStale] = useState<StaleItem[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [preview, setPreview] = useState<PreviewStatus | null>(null);
   const [presence, setPresence] = useState<string[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const rev = useRef(0);
+  const newest = useRef<Spec | null>(null);
+  /** The spec as of the last accepted edit, ahead of React's next render. */
+  const latest = useCallback(() => newest.current!, []);
 
   const fail = useCallback((e: unknown) => {
     setNotice({ kind: "error", text: e instanceof Error ? e.message : String(e), items: e instanceof ApiError ? e.items : undefined });
   }, []);
 
   const loadDerived = useCallback(async () => {
-    const [p, c, h] = await Promise.all([api.plan(id), api.check(id), api.history(id)]);
+    const [p, c, h, st] = await Promise.all([api.plan(id), api.check(id), api.history(id), api.stale(id)]);
     setPlan(p);
     setIssues(c);
     setHistory(h);
+    setStale(st);
   }, [id]);
 
   const reload = useCallback(async () => {
     const p = await api.project(id);
     rev.current = p.rev;
+    newest.current = p.spec;
     setProject(p);
     await loadDerived();
   }, [id, loadDerived]);
@@ -65,6 +71,7 @@ export function useProject(id: string, me: string) {
       try {
         const r = await api.commands(id, rev.current, commands);
         rev.current = r.rev;
+        newest.current = r.spec;
         setProject((p) => (p ? { ...p, rev: r.rev, spec: r.spec } : p));
         setNotice(null);
         await loadDerived();
@@ -114,6 +121,17 @@ export function useProject(id: string, me: string) {
     return () => clearInterval(t);
   }, [id, preview?.state]);
 
+  const hold = useCallback(
+    async (held: boolean) => {
+      try {
+        setPreview(await api.holdPreview(id, held));
+      } catch (e) {
+        fail(e);
+      }
+    },
+    [id, fail],
+  );
+
   const canEdit = project?.role === "owner" || project?.role === "editor";
-  return { project, plan, issues, history, preview, presence, notice, setNotice, busy, canEdit, send, restore, previewAction, reload };
+  return { project, plan, issues, stale, history, preview, presence, notice, setNotice, busy, canEdit, send, latest, restore, previewAction, hold, reload };
 }

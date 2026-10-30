@@ -1,7 +1,7 @@
 import { THEMES } from "@redwood/parts";
 import { FIELD_TYPES, OPERATIONS, type Command, type Provenance, type Spec } from "@redwood/spec";
 import { LlmBadOutput, LlmUnavailable, hashPrompt, type LlmClient } from "./llm";
-import { entityPrompt, fieldsPrompt, operationsPrompt, rulesPrompt, themePrompt } from "./prompts";
+import { entityPrompt, fieldsPrompt, operationsPrompt, rulesPrompt, servicePrompt, themePrompt } from "./prompts";
 import type { StepName, Suggestion } from "./types";
 import { VERB_ENTITIES, WRITES, defaultPath, freshId, hash, humanize, isUsablePath, norm, plural, slug } from "./util";
 
@@ -98,7 +98,7 @@ export async function place(spec: Spec, ctx: Context): Promise<Suggestion | null
     const title = humanize(plural(name));
     commands.push({
       type: "addScreen",
-      screen: { id: freshId("screen", title, spec.screens.map((s) => s.id)), title, path, entity: entityId, stories: [story.id], endpoints: [], blocks: [], bento: {}, roles: [] },
+      screen: { id: freshId("screen", title, spec.screens.map((s) => s.id)), title, path, entity: entityId, stories: [story.id], endpoints: [], blocks: [], bento: {}, roles: [], fields: [], placement: "nav" },
     });
   }
   return {
@@ -253,14 +253,14 @@ export async function operations(spec: Spec, ctx: Context): Promise<Suggestion |
         if (have) { ids.push(have.id); continue; }
         const id = freshId("endpoint", `${eslug}-${op}`, taken);
         taken.push(id); ids.push(id);
-        commands.push({ type: "addEndpoint", endpoint: { id, entity: entity.id, operation: op, guards: [], provenance: p } });
+        commands.push({ type: "addEndpoint", endpoint: { id, entity: entity.id, operation: op, guards: [], services: [], provenance: p } });
       }
       for (const action of got.custom) {
         const have = spec.endpoints.find((e) => e.entity === entity.id && e.operation === "custom" && e.action === action);
         if (have) { ids.push(have.id); continue; }
         const id = freshId("endpoint", `${eslug}-${action}`, taken);
         taken.push(id); ids.push(id);
-        commands.push({ type: "addEndpoint", endpoint: { id, entity: entity.id, operation: "custom", action, guards: [], provenance: p } });
+        commands.push({ type: "addEndpoint", endpoint: { id, entity: entity.id, operation: "custom", action, guards: [], services: [], provenance: p } });
       }
       commands.push({ type: "updateScreen", id: screen.id, patch: { endpoints: ids } });
       return {
@@ -324,7 +324,7 @@ export function access(spec: Spec, ctx: Context): Suggestion | null {
     key, step: "access", source: "rule", because: [],
     title: "Who can do what",
     lines: grants.map((g) => `${roleName(spec, g.role)} on ${spec.entities.find((e) => e.id === g.entity)!.name}: ${g.operations.join(", ")}`),
-    commands: grants.map((g) => ({ type: "grant", rule: { role: g.role, entity: g.entity, operations: g.operations, hiddenFields: [] } }) as Command),
+    commands: grants.map((g) => ({ type: "grant", rule: { role: g.role, entity: g.entity, operations: g.operations, hiddenFields: [], readOnlyFields: [] } }) as Command),
   };
 }
 
@@ -409,6 +409,52 @@ export async function rules(spec: Spec, ctx: Context): Promise<Suggestion | null
     if (e instanceof LlmBadOutput) return problem(key, "rules", "Status buttons and own records", e);
     throw e;
   }
+}
+
+// ---------------------------------------------------------------------------------------------- services
+
+const SERVICE_KINDS = ["email", "notification", "job", "storage", "audit", "integration"] as const;
+
+/** The first custom action with no service: does it need one? Plain CRUD never does, so only custom actions are asked. */
+export async function services(spec: Spec, ctx: Context): Promise<Suggestion | null> {
+  for (const ep of spec.endpoints) {
+    if (ep.operation !== "custom" || ep.services.length) continue;
+    const entity = spec.entities.find((e) => e.id === ep.entity);
+    if (!entity) continue;
+    const key = `services:${ep.id}:${hash(ep.action, spec.services.map((s) => s.name))}`;
+    if (ctx.decided.has(key)) continue;
+
+    const llm = need(ctx);
+    const prompt = servicePrompt({ entity: entity.name, action: ep.action ?? ep.id, services: spec.services.map((s) => s.name), kinds: SERVICE_KINDS });
+    const schema = {
+      type: "object",
+      properties: { needsService: { type: "boolean" }, serviceName: { type: ["string", "null"] }, kind: { type: "string", enum: [...SERVICE_KINDS] } },
+      required: ["needsService"],
+    };
+    const base = { model: llm.model, promptHash: hashPrompt(prompt) };
+    const title = `Services for ${ep.action ?? ep.id}`;
+    try {
+      const got = await ask(llm, prompt, schema, (raw) => {
+        if (raw.needsService !== true) return null;
+        const name = typeof raw.serviceName === "string" ? raw.serviceName.trim() : "";
+        if (!name) throw new LlmBadOutput("a service is needed but none was named");
+        const kind = (SERVICE_KINDS as readonly string[]).includes(String(raw.kind)) ? (raw.kind as (typeof SERVICE_KINDS)[number]) : "integration";
+        return { name, kind };
+      });
+      if (!got) { ctx.decide(key); continue; }
+      const existing = spec.services.find((s) => norm(s.name) === norm(got.name));
+      const id = existing?.id ?? freshId("service", got.name, spec.services.map((s) => s.id));
+      const commands: Command[] = [
+        ...(existing ? [] : [{ type: "addService", service: { id, name: got.name, kind: got.kind, secrets: [] } } as Command]),
+        { type: "updateEndpoint", id: ep.id, patch: { services: [id] } },
+      ];
+      return { key, step: "services", source: "ai", ...base, because: [], commands, title, lines: [`${got.name}${existing ? " (already there)" : ` (new, ${got.kind})`}`] };
+    } catch (e) {
+      if (e instanceof LlmBadOutput) return problem(key, "services", title, e);
+      throw e;
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------------------------- theme

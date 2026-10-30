@@ -13,12 +13,12 @@ ${[p.toolbar, p.main, p.overlays, p.footer].filter(Boolean).join("\n")}
 
 registerLayout({
   id: "list",
-  description: "Records in a table, with a side panel for the one you select.",
+  description: "Records in a table. Each one opens on its own page.",
   blocks: {
     actions: ["new-button"],
     toolbar: ["search-count"],
     main: ["data-table"],
-    overlays: ["form-dialog", "confirm-dialog", "gap-dialog", "detail-pane"],
+    overlays: ["form-dialog", "gap-dialog", "record-page"],
     footer: ["summary", "named-blocks"],
   },
   shell: page,
@@ -31,7 +31,7 @@ registerLayout({
     actions: ["new-button"],
     toolbar: ["search-count"],
     main: ["board"],
-    overlays: ["form-dialog", "confirm-dialog", "gap-dialog", "detail-pane"],
+    overlays: ["form-dialog", "gap-dialog", "record-page"],
     footer: ["summary", "named-blocks"],
   },
   shell: page,

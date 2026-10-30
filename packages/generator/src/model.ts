@@ -54,7 +54,7 @@ export function emitModel(spec: Spec): string {
     if (e.seed.length) {
       seeds[table] = e.seed.map((row) =>
         Object.fromEntries(
-          Object.entries(row).map(([id, v]) => [columnName(e.fields.find((f) => f.id === id)!), v]),
+          Object.entries(row).map(([id, v]) => [id === "id" ? "id" : columnName(e.fields.find((f) => f.id === id)!), v]),
         ),
       );
     }
@@ -99,6 +99,7 @@ export function emitPolicy(spec: Spec): string {
       ops: [...r.operations].sort(),
       ...(r.ownerField ? { owner: findColumn(e, r.ownerField, "ownerField") } : {}),
       hidden: r.hiddenFields.map((h) => findColumn(e, h, "hidden field")).sort(),
+      readOnly: r.readOnlyFields.map((h) => findColumn(e, h, "read-only field")).sort(),
     };
   }
   const workflows: Record<string, unknown> = {};
@@ -117,6 +118,7 @@ interface Grant {
   ops: Op[];
   owner?: string;
   hidden: string[];
+  readOnly: string[];
 }
 
 const access: Record<string, Record<string, Grant>> = ${json(access)};
@@ -131,6 +133,9 @@ export const can = (role: string, table: string, op: Op): boolean => !!grant(rol
 export const ownerColumn = (role: string, table: string): string | undefined => grant(role, table)?.owner;
 
 export const hiddenColumns = (role: string, table: string): string[] => grant(role, table)?.hidden ?? [];
+
+/** Columns this role can see but never change once a record exists. */
+export const readOnlyColumns = (role: string, table: string): string[] => grant(role, table)?.readOnly ?? [];
 
 export const canTransition = (role: string, table: string, from: string, to: string): boolean =>
   !!workflows[table]?.transitions.some((t) => t.from === from && t.to === to && t.roles.includes(role));

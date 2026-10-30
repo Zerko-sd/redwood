@@ -30,6 +30,7 @@ export type Provenance = z.infer<typeof provenance>;
 export const FIELD_TYPES = [
   "text", "longtext", "number", "money", "date", "datetime", "boolean",
   "choice", "email", "phone", "file", "image", "reference",
+  "url", "percent", "rating", "color",
 ] as const;
 
 export const role = z.object({
@@ -49,6 +50,8 @@ export const story = z.object({
   /** "draft" origin means extracted from a free-text PRD and awaiting a person. */
   origin: z.enum(["human", "prd-draft"]).default("human"),
   tags: z.array(z.string()).default([]),
+  /** The part of the product this story belongs to. Organises work; a spec still generates one app. */
+  subProject: z.string().optional(),
 });
 
 export const field = z.object({
@@ -88,12 +91,13 @@ export const entity = z.object({
       ),
     })
     .optional(),
-  /** Demo rows, keyed by field ID so renaming a field never breaks them. */
+  /** Demo rows, keyed by field ID so renaming a field never breaks them. An `id` key names the row itself. */
   seed: z.array(z.record(z.union([z.string(), z.number(), z.boolean(), z.null()]))).default([]),
   provenance: provenance.optional(),
 });
 
 export const OPERATIONS = ["list", "read", "create", "update", "delete"] as const;
+export const PLACEMENTS = ["nav", "home", "linked"] as const;
 
 export const endpoint = z.object({
   id: endpointId,
@@ -102,6 +106,9 @@ export const endpoint = z.object({
   /** Required when operation is "custom". */
   action: z.string().optional(),
   guards: z.array(z.string()).default([]),
+  subProject: z.string().optional(),
+  /** Services this endpoint relies on. Recorded intent; only custom endpoints hand code to a developer. */
+  services: z.array(serviceId).default([]),
   provenance: provenance.optional(),
 });
 
@@ -125,6 +132,11 @@ export const screen = z.object({
     .record(z.object({ answer: z.boolean(), because: z.array(storyId).default([]), provenance: provenance.optional() }))
     .default({}),
   roles: z.array(roleId).default([]),
+  subProject: z.string().optional(),
+  /** Fields this screen shows, in order. Blank means all of them. */
+  fields: z.array(fieldId).default([]),
+  /** Where the screen sits: in the menu, as where people land, or only opened from another page. */
+  placement: z.enum(PLACEMENTS).default("nav"),
 });
 
 export const service = z.object({
@@ -135,6 +147,12 @@ export const service = z.object({
   secrets: z.array(z.string()).default([]),
 });
 
+/** A part of the product, and the roles who work in it. */
+export const subProject = z.object({
+  name: z.string().min(1),
+  roles: z.array(roleId).default([]),
+});
+
 export const accessRule = z.object({
   role: roleId,
   entity: entityId,
@@ -142,6 +160,8 @@ export const accessRule = z.object({
   /** Row-level: restrict to rows where this field equals the signed-in user. */
   ownerField: z.string().optional(),
   hiddenFields: z.array(z.string()).default([]),
+  /** Fields this role can see but never change. */
+  readOnlyFields: z.array(z.string()).default([]),
 });
 
 export const theme = z.object({
@@ -155,6 +175,7 @@ export const spec = z.object({
   schemaVersion: z.literal(SPEC_SCHEMA_VERSION),
   title: z.string().min(1),
   tenancy: z.enum(["single", "multi"]).default("single"),
+  subProjects: z.array(subProject).default([]),
   roles: z.array(role).default([]),
   stories: z.array(story).default([]),
   entities: z.array(entity).default([]),
@@ -171,3 +192,8 @@ export type Entity = z.infer<typeof entity>;
 export type Field = z.infer<typeof field>;
 export type Story = z.infer<typeof story>;
 export type Screen = z.infer<typeof screen>;
+export type Role = z.infer<typeof role>;
+export type Endpoint = z.infer<typeof endpoint>;
+export type Service = z.infer<typeof service>;
+export type AccessRule = z.infer<typeof accessRule>;
+export type SubProject = z.infer<typeof subProject>;

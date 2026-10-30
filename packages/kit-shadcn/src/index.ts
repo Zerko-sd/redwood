@@ -10,21 +10,21 @@ const read = (name: string) => readFileSync(new URL(`./${name}`, import.meta.url
  */
 export const shadcnKit: UiKit = {
   name: "shadcn",
-  version: "0.2.0",
+  version: "0.3.0",
   missing: [],
   dependencies: {
-    "@fontsource/ibm-plex-sans": "^5.1.0",
-    "@fontsource/ibm-plex-sans-condensed": "^5.1.0",
+    "@fontsource/hanken-grotesk": "^5.1.0",
+    "@fontsource/source-serif-4": "^5.1.0",
   },
   files(tokens) {
     const vars = THEME_TOKENS.map((t) => `  --${t}: ${tokens[t]};`).join("\n");
     return {
       "components.tsx": read("components.tsx.tpl"),
       "kit.css": read("kit.css.tpl"),
-      "theme.css": `@import "@fontsource/ibm-plex-sans/400.css";
-@import "@fontsource/ibm-plex-sans/500.css";
-@import "@fontsource/ibm-plex-sans/600.css";
-@import "@fontsource/ibm-plex-sans-condensed/600.css";
+      "theme.css": `@import "@fontsource/hanken-grotesk/400.css";
+@import "@fontsource/hanken-grotesk/500.css";
+@import "@fontsource/hanken-grotesk/600.css";
+@import "@fontsource/source-serif-4/600.css";
 
 :root {
 ${vars}

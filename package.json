@@ -8,9 +8,10 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -b",
+    "typecheck": "node scripts/typecheck.mjs",
     "start": "tsx apps/server/src/index.ts",
-    "builder": "npm run dev -w @redwood/builder"
+    "builder": "npm run dev -w @redwood/builder",
+    "dev": "node scripts/dev.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

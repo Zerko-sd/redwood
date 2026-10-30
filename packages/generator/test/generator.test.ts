@@ -82,11 +82,14 @@ describe("output", () => {
     expect(files["src/server/crud.ts"]).toContain("refers to a record that does not exist");
   });
 
-  it("gives every list a New action, a detail pane, a delete confirmation and honest empty states", () => {
+  it("gives every list a New action, a record page, a delete confirmation and honest empty states", () => {
     const buses = files["src/web/screens/Buses.tsx"]!;
+    const record = files["src/web/screens/BusesRecord.tsx"]!;
     expect(buses).toContain('setEditing("new")');
-    expect(buses).toContain("<DetailPane");
-    expect(buses).toContain('"Delete " + nameOf(confirming)');
+    expect(buses).toContain('navigate("/buses" + "/" + row.id)');
+    expect(record).toContain("<RecordPage");
+    expect(record).toContain('"Delete " + nameOf(row)');
+    expect(files["src/web/App.tsx"]).toContain("BusesRecord");
     expect(buses).toContain('title="Loading…"');
     expect(buses).toContain('title="No buses yet"');
     expect(buses).toContain("Add the first bus");
@@ -117,18 +120,18 @@ describe("output", () => {
   });
 
   it("replaces a part the kit lacks with a visible placeholder rather than omitting it", () => {
-    const noDetail = { name: "tiny", version: "0", missing: ["DetailPane" as const, "Dialog" as const], dependencies: {}, files: () => ({ "index.ts": "", "components.tsx": "" }) };
+    const noDetail = { name: "tiny", version: "0", missing: ["RecordPage" as const, "Dialog" as const], dependencies: {}, files: () => ({ "index.ts": "", "components.tsx": "" }) };
     const r = generate(spec, { kit: noDetail });
     const buses = r.files["src/web/screens/Buses.tsx"]!;
-    expect(buses).toContain('<Placeholder what="the detail pane on Buses" />');
+    expect(buses).toContain('<Placeholder what="the record page on Buses" />');
     expect(buses).toContain('<Placeholder what="the dialog on Buses" />');
-    expect(r.manifest.needsDeveloper.map((g) => g.what)).toEqual(expect.arrayContaining(["screen:buses:DetailPane", "screen:buses:Dialog"]));
+    expect(r.manifest.needsDeveloper.map((g) => g.what)).toEqual(expect.arrayContaining(["screen:buses:RecordPage", "screen:buses:Dialog"]));
   });
 
   it("adds the kit's own dependencies (fonts) to the app", () => {
     const pkg = JSON.parse(files["package.json"]!);
-    expect(pkg.dependencies["@fontsource/ibm-plex-sans"]).toBeTruthy();
-    expect(files["src/web/ui/theme.css"]).toContain("@fontsource/ibm-plex-sans/400.css");
+    expect(pkg.dependencies["@fontsource/hanken-grotesk"]).toBeTruthy();
+    expect(files["src/web/ui/theme.css"]).toContain("@fontsource/source-serif-4/600.css");
   });
 
   it("stubs custom endpoints instead of guessing", () => {
@@ -154,7 +157,7 @@ describe("layouts, themes and blocks", () => {
     expect(page).toContain("<Board");
     expect(page).toContain("model.workflow!.states.map");
     expect(page).not.toContain("<Table");
-    expect(page).toContain("<DetailPane"); // the shared blocks still compose in
+    expect(page).toContain('navigate("/trips" + "/" + row.id)'); // the shared blocks still compose in
   });
 
   it("refuses a layout that does not exist, or a board with no workflow behind it", () => {
@@ -211,6 +214,83 @@ describe("layouts, themes and blocks", () => {
     const second = writeApp(dir, next);
     expect(readFileSync(join(dir, "custom/blocks/LiveMap.tsx"), "utf8")).toBe(mine);
     expect(second.manifest.needsDeveloper.some((g) => g.what === "screen:trips:block:live-map")).toBe(false);
+  });
+});
+
+describe("record pages", () => {
+  const record = (s: Spec, file = "Buses") => generate(s).files[`src/web/screens/${file}Record.tsx`]!;
+
+  it("adds a tab for each table that points here, and only for roles that may list it", () => {
+    const page = record(spec);
+    expect(page).toContain('id: "trip"');
+    expect(page).toContain('can(me.role, "trip", "list")');
+    expect(page).toContain('navigate("/trips" + "/" + x.id)');
+  });
+
+  it("adds a Files tab only when the table holds files", () => {
+    expect(record(spec)).not.toContain("RecordFiles");
+    const withFile = applyCommand(spec, { type: "addField", entity: "entity:bus", field: { id: "field:photo", name: "Photo", type: "image", required: false, unique: false } });
+    const page = record(withFile);
+    expect(page).toContain("RecordFiles");
+    expect(page).toContain('image={row["photo"]');
+  });
+
+  it("opens a form page for a role that may create but not list", () => {
+    const next = applyCommand(spec, {
+      type: "addScreen",
+      screen: { id: "screen:new-bus", title: "Register a bus", path: "/register", entity: "entity:bus", stories: ["story:manage-buses"], endpoints: ["endpoint:buses-create"], roles: ["role:admin"] },
+    });
+    const { files: out } = generate(next);
+    expect(out["src/web/App.tsx"]).toMatch(/path: "\/register".*op: "create" as const/);
+    expect(out["src/web/App.tsx"]).toContain("can(me.role, s.table, s.op)");
+    expect(out["src/web/App.tsx"]).toContain('can(me.role, s.table, "list") && <Count');
+    expect(out["src/web/Home.tsx"]).toContain("can(me.role, sc.table, sc.op)");
+  });
+
+  it("gets no record page for a form-only screen", () => {
+    const next = applyCommand(spec, {
+      type: "addScreen",
+      screen: { id: "screen:new-bus", title: "Register a bus", path: "/register", entity: "entity:bus", stories: ["story:manage-buses"], endpoints: ["endpoint:buses-create"], roles: ["role:admin"] },
+    });
+    expect(generate(next).files["src/web/screens/NewBusRecord.tsx"]).toBeUndefined();
+  });
+
+  it("honours what a screen shows, without widening past what a role may see", () => {
+    const next = applyCommand(spec, { type: "updateScreen", id: "screen:buses", patch: { fields: ["field:plate"] } });
+    const list = generate(next).files["src/web/screens/Buses.tsx"]!;
+    expect(list).toContain('.filter((c) => ["plate"].includes(c.key))');
+    expect(list.indexOf("!hidden.has(c.key)")).toBeLessThan(list.indexOf('["plate"]'));
+  });
+
+  it("puts a screen where its placement says", () => {
+    const linked = generate(applyCommand(spec, { type: "updateScreen", id: "screen:buses", patch: { placement: "linked" } })).files["src/web/App.tsx"]!;
+    expect(linked).toContain('placement: "linked"');
+    expect(linked).toContain('s.placement !== "linked"');
+    const home = generate(applyCommand(spec, { type: "updateScreen", id: "screen:buses", patch: { placement: "home" } })).files["src/web/App.tsx"]!;
+    expect(home).toContain('placement: "home"');
+    expect(home).toContain("<Navigate to={home.path} replace />");
+  });
+
+  it("groups the menu only when there is more than one sub-project", () => {
+    const one = applyCommand(spec, { type: "updateScreen", id: "screen:buses", patch: { subProject: "Fleet" } });
+    expect(generate(one).files["src/web/App.tsx"]).toContain('group: ""');
+    const two = applyCommand(one, { type: "updateScreen", id: "screen:trips", patch: { subProject: "Trips" } });
+    expect(generate(two).files["src/web/App.tsx"]).toContain('group: "Fleet"');
+  });
+
+  it("compiles read-only fields into the policy, and the server refuses a change to one", () => {
+    const rule = spec.access.find((a) => a.entity === "entity:bus" && a.operations.includes("update"))!;
+    const next = applyCommand(spec, { type: "grant", rule: { ...rule, readOnlyFields: ["Plate"] } });
+    const { files } = generate(next);
+    expect(files["src/shared/policy.ts"]).toContain('"readOnly": [\n');
+    expect(files["src/shared/policy.ts"]).toContain("readOnlyColumns");
+    expect(files["src/server/crud.ts"]).toContain("can't be changed");
+    expect(files["src/web/screens/BusesRecord.tsx"]).toContain("readOnlyColumns(me.role");
+  });
+
+  it("emits sample rows with their own id, so references can point at them", () => {
+    const next = applyCommand(spec, { type: "setSeed", entity: "entity:bus", rows: [{ id: "r1", "field:plate": "A" }] });
+    expect(generate(next).files["src/shared/model.ts"]).toContain('"id": "r1"');
   });
 });
 
