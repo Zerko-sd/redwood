@@ -1,0 +1,259 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{--bg:#15110e;--panel:#211a16;--panel2:#2b221d;--line:#3a2f28;--cream:#f4ece3;--mute:#a79a8e;--red:#d4583a;--red2:#ff7a57;--green:#5fbf86;--amber:#e8b14a;--blue:#6aa7e8}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--cream);font-family:Inter,system-ui,sans-serif}
+.scene{position:absolute;inset:0;opacity:0}
+.grain{position:absolute;inset:0;background:radial-gradient(1200px 700px at 70% 20%,rgba(212,88,58,.13),transparent 60%),radial-gradient(900px 600px at 10% 90%,rgba(232,177,74,.06),transparent 60%);}
+.brand{position:absolute;left:80px;top:60px;display:flex;align-items:center;gap:14px;font-weight:600;font-size:28px;letter-spacing:-.01em;color:var(--cream)}
+.brand svg{width:34px;height:34px}
+.kicker{position:absolute;left:80px;top:150px;font-size:26px;font-weight:600;color:var(--red2);letter-spacing:.08em;text-transform:uppercase}
+.title{position:absolute;left:80px;top:196px;font-size:64px;font-weight:700;letter-spacing:-.025em;line-height:1.08;max-width:1700px}
+.caption{position:absolute;left:80px;right:80px;bottom:70px;font-size:34px;color:var(--mute);font-weight:500}
+.caption b{color:var(--cream);font-weight:600}
+.mono{font-family:"DejaVu Sans Mono",monospace}
+/* s1 */
+#s1 .big{position:absolute;left:160px;font-size:104px;font-weight:700;letter-spacing:-.035em;line-height:1}
+#s1 .strike{position:absolute;height:12px;background:var(--red);border-radius:6px}
+/* cards */
+.card{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:30px 36px}
+.story{font-size:38px;line-height:1.35;width:1560px;left:180px}
+.story .role{color:var(--amber);font-weight:600}
+.story{padding-top:58px}.story .tag{position:absolute;left:36px;top:20px;font-size:20px;color:var(--mute)}
+.opt{position:relative;display:flex;align-items:center;gap:18px;font-size:40px;font-weight:600;padding:22px 30px;border-radius:14px;border:2px solid var(--line);margin-bottom:18px;background:var(--panel2)}
+.opt .dot{width:22px;height:22px;border-radius:50%;border:3px solid var(--mute)}
+.btn{display:inline-block;padding:18px 34px;border-radius:12px;font-weight:700;font-size:32px}
+.code{font-size:27px;line-height:1.55;white-space:pre}
+.k{color:var(--blue)}.s{color:var(--amber)}.n{color:var(--green)}
+.win{position:absolute;top:380px;width:820px;height:560px;background:#fbfaf8;color:#37352f;border-radius:16px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.win .bar{height:52px;background:#ecebe8;display:flex;align-items:center;gap:10px;padding:0 20px}
+.win .bar i{width:14px;height:14px;border-radius:50%;background:#cfcdc9;display:block}
+.win .bar span{margin-left:18px;font-size:20px;color:#6b6a67}
+.win .side{position:absolute;left:0;top:52px;bottom:0;width:190px;background:#f3f2ef;padding:24px 18px;font-size:22px}
+.win .side div{padding:10px 12px;border-radius:7px;margin-bottom:4px;display:flex;justify-content:space-between}
+.win .main{position:absolute;left:190px;right:0;top:52px;bottom:0;padding:28px 30px}
+.win h3{font-size:30px;margin-bottom:18px}
+.tbl{width:100%;border-collapse:collapse;font-size:20px}
+.tbl th{text-align:left;color:#8a8883;font-weight:500;padding:9px 8px;border-bottom:1px solid #e6e5e2}
+.tbl td{white-space:nowrap;padding:13px 8px;border-bottom:1px solid #efeeeb}
+.pill{padding:4px 12px;border-radius:999px;font-size:17px;font-weight:600}
+.p-sch{background:#e7effa;color:#2f6db5}.p-run{background:#fdf0d8;color:#a6670a}.p-done{background:#e2f4e8;color:#2c7a4b}
+.role-badge{position:absolute;top:320px;font-size:30px;font-weight:700}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="tree" viewBox="0 0 40 40"><path d="M20 3 L30 16 H25 L33 26 H24 V37 H16 V26 H7 L15 16 H10 Z" fill="#d4583a"/></symbol>
+</defs></svg>
+
+<!-- S1 hook -->
+<div class="scene" id="s1"><div class="grain"></div>
+  <div class="brand"><svg><use href="#tree"/></svg>Redwood</div>
+  <div class="big" id="s1a" style="top:300px">Most AI app builders</div>
+  <div class="big" id="s1b" style="top:420px">let a model <span id="s1w">write your code.</span></div>
+  <div class="strike" id="s1x"></div>
+  <div class="big" id="s1c" style="top:620px;color:var(--red2)">Redwood doesn't.</div>
+</div>
+
+<!-- S2 stories -->
+<div class="scene" id="s2"><div class="grain"></div>
+  <div class="brand"><svg><use href="#tree"/></svg>Redwood</div>
+  <div class="kicker">Step 1</div>
+  <div class="title">You write user stories.</div>
+  <div class="card story" id="st1" style="top:320px"><span class="tag mono">story:schedule-trips</span><span class="tx"></span></div>
+  <div class="card story" id="st2" style="top:560px"><span class="tag mono">story:my-trips</span><span class="tx"></span></div>
+  <div class="card story" id="st3" style="top:750px"><span class="tag mono">story:progress-trip</span><span class="tx"></span></div>
+</div>
+
+<!-- S3 closed list -->
+<div class="scene" id="s3"><div class="grain"></div>
+  <div class="brand"><svg><use href="#tree"/></svg>Redwood</div>
+  <div class="kicker">Step 2</div>
+  <div class="title">The AI only picks from a closed list.</div>
+  <div class="card" style="left:80px;top:330px;width:720px">
+    <div style="font-size:22px;color:var(--mute);margin-bottom:12px">STORY</div>
+    <div style="font-size:34px;line-height:1.35"><span style="color:var(--amber);font-weight:600">Admin</span> wants to schedule a trip for a bus and a driver</div>
+    <div style="font-size:22px;color:var(--mute);margin:34px 0 12px">QUESTION</div>
+    <div style="font-size:40px;font-weight:700;line-height:1.25">Which table does this story belong to?</div>
+  </div>
+  <div style="position:absolute;left:880px;top:330px;width:560px" id="opts">
+    <div class="opt" data-i="0"><span class="dot"></span>Bus</div>
+    <div class="opt" data-i="1"><span class="dot"></span>Trip</div>
+    <div class="opt" data-i="2"><span class="dot"></span>Driver</div>
+    <div class="opt" data-i="3"><span class="dot"></span>Route</div>
+  </div>
+  <div id="refuse" class="card mono" style="left:880px;top:810px;width:960px;font-size:22px;white-space:nowrap;padding:20px 28px;border-color:#5a2d22;background:#2a1814">
+    model said <span style="color:var(--red2)">"Booking"</span> &rarr; not on the list &rarr; <b style="color:var(--red2)">refused</b>, asked once more
+  </div>
+  <div style="position:absolute;left:1500px;top:390px;width:340px" id="acc">
+    <div style="font-size:24px;color:var(--mute);margin-bottom:14px">A person decides</div>
+    <div class="btn" id="accbtn" style="background:var(--green);color:#0d2416">&#10003; Accept</div>
+    <div id="accd" style="margin-top:22px;font-size:26px;color:var(--green);font-weight:600">Saved to the spec</div>
+  </div>
+  <svg id="cursor" style="position:absolute;width:44px;height:44px" viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.5 L12 13.8 L19 13.8 Z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg>
+</div>
+
+<!-- S4 spec -->
+<div class="scene" id="s4"><div class="grain"></div>
+  <div class="brand"><svg><use href="#tree"/></svg>Redwood</div>
+  <div class="kicker">Step 3</div>
+  <div class="title">Every decision lives in one spec.</div>
+  <div class="card code mono" id="spec" style="left:80px;top:330px;width:900px;height:560px;overflow:hidden"></div>
+  <div id="genarrow" style="position:absolute;left:1010px;top:560px;font-size:30px;font-weight:700;color:var(--mute)">generate &rarr;<div style="font-size:20px;font-weight:500;margin-top:6px">no AI involved</div></div>
+  <div class="card" id="mA" style="left:1250px;top:380px;width:590px">
+    <div style="font-size:24px;color:var(--mute)">Your laptop</div>
+    <div class="mono" style="font-size:30px;margin-top:10px">sha256 <span class="s">9f3c…a7e21</span></div></div>
+  <div class="card" id="mB" style="left:1250px;top:560px;width:590px">
+    <div style="font-size:24px;color:var(--mute)">CI server, next month</div>
+    <div class="mono" style="font-size:30px;margin-top:10px">sha256 <span class="s">9f3c…a7e21</span></div></div>
+  <div id="same" style="position:absolute;left:1250px;top:750px;font-size:40px;font-weight:700;color:var(--green)">= byte-for-byte identical</div>
+</div>
+
+<!-- S5 app -->
+<div class="scene" id="s5"><div class="grain"></div>
+  <div class="brand"><svg><use href="#tree"/></svg>Redwood</div>
+  <div class="kicker">Step 4</div>
+  <div class="title">A working app. Rules enforced everywhere.</div>
+  <div class="role-badge" style="left:80px;color:var(--amber)">Signed in as Admin</div>
+  <div class="role-badge" style="left:1020px;color:var(--amber)">Signed in as Driver (Ravi)</div>
+  <div class="win" id="wA" style="left:80px">
+    <div class="bar"><i></i><i></i><i></i><span>localhost:5173/trips</span></div>
+    <div class="side"><div>Home</div><div>Buses</div><div style="background:#e4e3df;font-weight:600">Trips</div></div>
+    <div class="main"><h3>Trips</h3>
+      <table class="tbl"><tr><th>Route</th><th>Driver</th><th>Status</th></tr>
+      <tr><td>Majestic → Airport</td><td>Ravi</td><td><span class="pill p-sch" id="aSt">scheduled</span></td></tr>
+      <tr><td>Koramangala → ITPL</td><td>Meena</td><td><span class="pill p-run">running</span></td></tr>
+      <tr><td>Indiranagar → HSR</td><td>Ravi</td><td><span class="pill p-done">done</span></td></tr>
+      <tr><td>Hebbal → Jayanagar</td><td>Arjun</td><td><span class="pill p-sch">scheduled</span></td></tr>
+      </table></div></div>
+  <div class="win" id="wB" style="left:1020px">
+    <div class="bar"><i></i><i></i><i></i><span>localhost:5173/trips</span></div>
+    <div class="side"><div>Home</div><div style="color:#aaa">Buses <span>&#128274;</span></div><div style="background:#e4e3df;font-weight:600">Trips</div></div>
+    <div class="main"><h3>My trips</h3>
+      <table class="tbl"><tr><th>Route</th><th>Status</th><th></th></tr>
+      <tr><td>Majestic → Airport</td><td><span class="pill p-sch" id="bSt">scheduled</span></td><td><span id="bBtn" style="background:#2383e2;color:#fff;padding:6px 12px;border-radius:6px;font-size:17px;font-weight:600">Mark running</span></td></tr>
+      <tr><td>Indiranagar → HSR</td><td><span class="pill p-done">done</span></td><td></td></tr>
+      </table>
+      <div id="denied" class="mono" style="margin-top:40px;font-size:19px;background:#fbe9e7;color:#b03a2e;padding:14px 16px;border-radius:8px">GET /api/buses &rarr; 403 Forbidden (driver)</div>
+    </div></div>
+  <svg id="cursor2" style="position:absolute;width:40px;height:40px" viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.5 L12 13.8 L19 13.8 Z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg>
+</div>
+
+<!-- S6 gaps -->
+<div class="scene" id="s6"><div class="grain"></div>
+  <div class="brand"><svg><use href="#tree"/></svg>Redwood</div>
+  <div class="kicker">Step 5</div>
+  <div class="title">No template? No guessing.</div>
+  <div class="card" id="gap" style="left:80px;top:370px;width:1000px;border:3px dashed var(--amber);background:#241d12">
+    <div style="font-size:26px;color:var(--amber);font-weight:700;letter-spacing:.06em">DEVELOPER NEEDED</div>
+    <div style="font-size:44px;font-weight:700;margin:14px 0">Live map block</div>
+    <div class="mono" style="font-size:24px;color:var(--mute);line-height:1.6">custom/blocks/LiveMap.tsx<br>screen: trips &middot; serves: story:track-bus<br>written once, never overwritten</div>
+  </div>
+  <div class="card mono" id="gap2" style="left:1160px;top:370px;width:680px;font-size:26px;line-height:1.7">
+    <div style="color:var(--mute);font-family:Inter;font-size:22px;margin-bottom:6px">redwood plan</div>
+    <div><span class="n">&#10003;</span> list &middot; table, search, dialogs</div>
+    <div><span class="n">&#10003;</span> board &middot; one column per status</div>
+    <div><span style="color:var(--amber)">&#9888;</span> live-map &rarr; needs a developer</div>
+  </div>
+  <div class="caption" id="gcap">Anything Redwood can't build becomes a <b>visible placeholder</b> &mdash; listed, never improvised.</div>
+</div>
+
+<!-- S7 outro -->
+<div class="scene" id="s7"><div class="grain"></div>
+  <div style="position:absolute;left:0;right:0;top:250px;text-align:center" id="o1">
+    <svg style="width:120px;height:120px"><use href="#tree"/></svg>
+    <div style="font-size:150px;font-weight:800;letter-spacing:-.045em;line-height:1;margin-top:10px">Redwood</div>
+  </div>
+  <div id="o2" style="position:absolute;left:0;right:0;top:580px;text-align:center;font-size:56px;font-weight:600;letter-spacing:-.02em">Write the stories. <span style="color:var(--red2)">Get the app.</span></div>
+  <div id="o3" style="position:absolute;left:0;right:0;top:690px;text-align:center;font-size:30px;color:var(--mute)">AI picks, people accept &nbsp;&middot;&nbsp; same spec, same app &nbsp;&middot;&nbsp; no AI in the build</div>
+  <div id="o4" class="mono" style="position:absolute;left:50%;top:800px;transform:translateX(-50%);font-size:32px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 34px">$ npx redwood init "Bus Fleet" --example</div>
+</div>
+
+<script>
+const S={s1:[0,5.5],s2:[5.5,13],s3:[13,22],s4:[22,28.5],s5:[28.5,37.5],s6:[37.5,43],s7:[43,49]};
+window.TOTAL=49; window.SCENES=S;
+const cl=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const p=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const $=id=>document.getElementById(id);
+function rise(el,k,d=30){el.style.opacity=k;el.style.transform=`translateY(${(1-eo(k))*d}px)`}
+const stories=[
+ ['As an ','Admin',', I want to schedule a trip for a bus and a driver, so every route is covered.'],
+ ['As a ','Driver',', I want to see my own trips, so I know where to be.'],
+ ['As a ','Driver',', I want to mark my trip running, then done, so dispatch sees progress.']];
+const specLines=[
+ '{','  <span class="k">"title"</span>: <span class="s">"Bus Fleet"</span>,',
+ '  <span class="k">"roles"</span>: [<span class="s">"admin"</span>, <span class="s">"driver"</span>],',
+ '  <span class="k">"entities"</span>: [{',
+ '    <span class="k">"name"</span>: <span class="s">"Trip"</span>,',
+ '    <span class="k">"workflow"</span>: [<span class="s">"scheduled"</span>,<span class="s">"running"</span>,<span class="s">"done"</span>]',
+ '  }],',
+ '  <span class="k">"access"</span>: { <span class="k">"driver"</span>: { <span class="k">"trip"</span>: <span class="s">"own rows only"</span> } },',
+ '  <span class="k">"theme"</span>: { <span class="k">"preset"</span>: <span class="s">"harbor"</span> }','}'];
+function render(t){
+  for(const [id,[a,b]] of Object.entries(S)){
+    const el=$(id); const local=t-a;
+    const vis=t>=a&&t<b; el.style.display=vis?'block':'none'; if(!vis) continue;
+    el.style.opacity=Math.min(p(t,a,a+.45),1-p(t,b-.45,b));
+    ({s1,s2,s3,s4,s5,s6,s7})[id](local);
+  }
+}
+function s1(l){
+  rise($('s1a'),p(l,.2,.8)); rise($('s1b'),p(l,.5,1.1));
+  const w=$('s1w'); const r=w.getBoundingClientRect(); const x=$('s1x');
+  const k=eio(p(l,1.8,2.5)); x.style.left=r.left+'px'; x.style.top=(r.top+r.height*.52)+'px'; x.style.width=(r.width*k)+'px';
+  w.style.opacity=1-.55*k;
+  rise($('s1c'),p(l,2.8,3.4),40);
+}
+function s2(l){
+  stories.forEach((s,i)=>{
+    const el=$('st'+(i+1)); const st=.5+i*2.1; rise(el,p(l,st,st+.4));
+    const full=s.join(''); const n=Math.floor(full.length*p(l,st+.2,st+1.8));
+    let out='',c=0; s.forEach((seg,j)=>{const take=cl(n-c,0,seg.length);const txt=seg.slice(0,take);out+=j==1?`<span class="role">${txt}</span>`:txt;c+=seg.length});
+    el.querySelector('.tx').innerHTML=out+(n<full.length&&l>st?'<span style="color:var(--red2)">|</span>':'');
+  });
+}
+function s3(l){
+  const opts=[...document.querySelectorAll('#opts .opt')];
+  const scan=l<1.2?-1:l<3?Math.floor((l-1.2)/.45)%4:1;
+  opts.forEach((o,i)=>{rise(o,p(l,.4+i*.12,.8+i*.12),20);
+    const on=i===scan; const fin=l>=3&&i===1;
+    o.style.borderColor=fin?'var(--green)':on?'var(--mute)':'var(--line)';
+    o.style.background=fin?'#1c3326':'var(--panel2)';
+    o.querySelector('.dot').style.background=fin?'var(--green)':'transparent';
+    o.querySelector('.dot').style.borderColor=fin?'var(--green)':'var(--mute)';});
+  rise($('refuse'),p(l,3.3,3.8),20);
+  rise($('acc'),p(l,3.6,4.1),20);
+  const c=$('cursor'); const k=eio(p(l,4.2,5.2));
+  const r=$('accbtn').getBoundingClientRect();
+  const x0=1700,y0=900,x1=r.left+r.width*.55,y1=r.top+r.height*.5;
+  c.style.left=(x0+(x1-x0)*k)+'px'; c.style.top=(y0+(y1-y0)*k)+'px'; c.style.opacity=p(l,4.0,4.3);
+  const press=l>5.3&&l<5.5; $('accbtn').style.transform=press?'scale(.94)':'scale(1)';
+  rise($('accd'),p(l,5.5,5.9),10);
+}
+function s4(l){
+  const n=Math.floor(specLines.length*p(l,.3,2.4));
+  $('spec').innerHTML=specLines.slice(0,Math.max(n,0)).join('\n');
+  rise($('genarrow'),p(l,2.5,2.9),0); $('genarrow').style.transform=`translateX(${(1-eo(p(l,2.5,3)))*-30}px)`;
+  rise($('mA'),p(l,3,3.4)); rise($('mB'),p(l,3.6,4)); rise($('same'),p(l,4.3,4.7),15);
+}
+function s5(l){
+  rise($('wA'),p(l,.4,.9),40); rise($('wB'),p(l,.8,1.3),40);
+  document.querySelectorAll('#s5 .role-badge').forEach((b,i)=>rise(b,p(l,.6+i*.4,1+i*.4),10));
+  const btn=$('bBtn').getBoundingClientRect(); const c=$('cursor2');
+  const k=eio(p(l,2.4,3.6)); const x0=1500,y0=980,x1=btn.left+btn.width*.5,y1=btn.top+btn.height*.55;
+  c.style.left=(x0+(x1-x0)*k)+'px'; c.style.top=(y0+(y1-y0)*k)+'px'; c.style.opacity=p(l,2.2,2.5);
+  const done=l>3.9;
+  for(const id of ['bSt','aSt']){const e=$(id);const go=id==='bSt'?done:l>4.4;
+    e.textContent=go?'running':'scheduled'; e.className='pill '+(go?'p-run':'p-sch');
+    if(id==='aSt'){e.style.boxShadow=(l>4.4&&l<5.6)?'0 0 0 4px rgba(232,177,74,.6)':'none'}}
+  $('bBtn').style.visibility=done?'hidden':'visible';
+  rise($('denied'),p(l,5.4,5.9),10);
+}
+function s6(l){ rise($('gap'),p(l,.4,.9)); rise($('gap2'),p(l,1.1,1.6));
+  rise($('gcap'),p(l,3.2,3.7),10);[...$('gap2').children].slice(1).forEach((d,i)=>{d.style.opacity=p(l,1.5+i*.5,1.8+i*.5)}); }
+function s7(l){ rise($('o1'),p(l,.2,.9),40); rise($('o2'),p(l,1,1.5)); rise($('o3'),p(l,1.6,2.1)); $('o4').style.opacity=p(l,2.3,2.8); }
+render(0);
+</script>
+</body></html>
